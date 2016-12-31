@@ -1,41 +1,55 @@
-# $@ = target file
-# $< = first dependency
-# $^ = all dependencies
 
-GCC := gcc
-LD := ld
+V := @
+OUT_DIR := bin
+OS_IMAGE := $(OUT_DIR)/os.iso
+KERNEL := $(OUT_DIR)/kernel.elf
+ASM_SRCS := boot/loader.s
+C_SRCS := kernel/kmain.c
 
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c)
-HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h)
-# Nice syntax for file extension replacement
-OBJ = ${C_SOURCES:.c=.o cpu/interrupt.o}
+ASM_OBJS = $(patsubst %.s,$(OUT_DIR)/%.o, $(notdir $(ASM_SRCS)))
+C_OBJS = $(patsubst %.c,$(OUT_DIR)/%.o, $(notdir $(C_SRCS)))
 
-CFLAGS = -ffreestanding
+CC = gcc
+CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
+	 -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c
+LDFLAGS = -T ldscript/linker.ld -melf_i386
+AS = nasm
+ASFLAGS = -f elf
+LD = ld
 
-all: run
+all: pre-build $(KERNEL) $(OS_IMAGE)
 
-%.o: %.c ${HEADERS}
-	${GCC} ${CFLAGS} -c $< -o $@
+pre-build:
+	@mkdir -p $(OUT_DIR)
 
-%.o: %.asm
-	nasm $< -f elf -o $@
+$(KERNEL): $(ASM_OBJS) $(C_OBJS)
+	@echo "  LD    $@"
+	$(V)$(LD) $(LDFLAGS) $^ -o $@
 
-%.bin: %.asm
-	nasm $< -f bin -o $@
+$(OS_IMAGE): $(KERNEL)
+	$(V)cp $< iso/boot/
+	$(V)genisoimage -R                          \
+		-b boot/grub/grub    		\
+		-no-emul-boot                   \
+		-boot-load-size 4               \
+		-A os                           \
+		-input-charset utf8             \
+		-quiet                          \
+		-boot-info-table                \
+		-o $@	 			\
+		iso
 
-kernel.bin: boot/entry.o ${OBJ}
-	${LD} -o $@ -Ttext 0x1000 $^ --oformat binary
+run: all
+	bochs -f tools/bochsrc.txt -q
 
-os-image.bin: boot/boot.bin kernel.bin
-	cat $^ > $@
+$(C_OBJS): $(C_SRCS)
+	@echo "  CC    $<"
+	$(V)$(CC) $(CFLAGS)  $< -o $@
 
-run: os-image.bin
-	qemu-system-i386 -fda os-image.bin -boot a
-
-boot:
-	nasm boot/boot.asm -f bin -o boot/boot.bin
-	nasm boot/entry.asm -f elf -o boot/entry.o
+$(ASM_OBJS): $(ASM_SRCS)
+	@echo "  ASM   $<"
+	$(V)$(AS) $(ASFLAGS) $< -o $@
 
 clean:
-	rm -rf *.bin *.dis *.o os-image.bin *.elf
-	rm -rf kernel/*.o boot/*.bin drivers/*.o boot/*.o cpu/*.o libc/*.o
+	@rm -rf bin/
+	@rm -f iso/boo/$(KERNEL)
