@@ -1,4 +1,11 @@
-int sum_of_three(int arg1, int arg2, int arg3)
+int kmain(void)
 {
-	return arg1 + arg2 + arg3;
+	k_video_init();
+	int i, j;
+
+	for (i = 0; i < 25; i++)
+		for (j = 0; j < 80; j++)
+			k_write_char('A' + i);
+	//k_video_init();
+	return 0;
 }

@@ -82,3 +82,21 @@ void *memcpy(void *dest, const void *src, size_t n)
 	return dest;
 }
 
+void *memset(void *s, int c, size_t n)
+{
+	uint8_t *src = (uint8_t *) s;
+	size_t i;
+
+	for (i = 0; i < n; i++)
+		src[i] = c;
+	return s;
+}
+
+void *memsetw(uint16_t *s, uint16_t c, size_t n)
+{
+	size_t i;
+
+	for (i = 0; i < n; i++)
+		s[i] = c;
+	return s;
+}

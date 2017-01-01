@@ -16,8 +16,9 @@ os_image := $(objdir)/os.iso
 kernel := $(objdir)/kernel.elf
 
 kernel_src_dir := \
-		kernel \
-		stdlib \
+		kernel	 \
+		drivers	 \
+		stdlib 	 \
 
 boot_src_dir :=	boot
 
@@ -27,7 +28,7 @@ c_objs := $(c_srcs:%.c=$(objdir)/%.o)
 asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
 
 CFLAGS := -O2 -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
-         -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -MMD
+         -nostartfiles -nodefaultlibs -Wall -Wextra -MMD
 CFLAGS += -Iinclude/stdlib
 
 LDFLAGS = -T ldscript/linker.ld
@@ -56,7 +57,7 @@ $(os_image): $(kernel)
                 -A os -input-charset utf8 -quiet -boot-info-table -o $@ iso
 
 run: all
-	bochs -f tools/bochsrc.txt -q
+	bochs -qf tools/bochsrc.txt -rc tools/bochsrc.debug
 
 $(objdir)/%.o: %.c
 	@echo "  CC    $<"
