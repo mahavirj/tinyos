@@ -1,55 +1,73 @@
 
+# Compiler GCC
+CC := gcc
+AS := nasm
+
+# Verbose build pass verbose=1
+ifeq ($(verbose),1)
+V :=
+else
 V := @
-OUT_DIR := bin
-OS_IMAGE := $(OUT_DIR)/os.iso
-KERNEL := $(OUT_DIR)/kernel.elf
-ASM_SRCS := boot/loader.s
-C_SRCS := kernel/kmain.c
+endif
 
-ASM_OBJS = $(patsubst %.s,$(OUT_DIR)/%.o, $(notdir $(ASM_SRCS)))
-C_OBJS = $(patsubst %.c,$(OUT_DIR)/%.o, $(notdir $(C_SRCS)))
+# Build artifacts
+objdir := bin
+os_image := $(objdir)/os.iso
+kernel := $(objdir)/kernel.elf
 
-CC = gcc
-CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
-	 -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c
-LDFLAGS = -T ldscript/linker.ld -melf_i386
-AS = nasm
+kernel_src_dir := \
+		kernel \
+		stdlib \
+
+boot_src_dir :=	boot
+
+c_srcs := $(foreach dir, $(kernel_src_dir), $(wildcard $(dir)/*.c))
+asm_srcs := $(foreach dir, $(boot_src_dir), $(wildcard $(dir)/*.s))
+c_objs := $(c_srcs:%.c=$(objdir)/%.o)
+asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
+
+CFLAGS := -O2 -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
+         -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -MMD
+CFLAGS += -Iinclude/stdlib
+
+LDFLAGS = -T ldscript/linker.ld
 ASFLAGS = -f elf
-LD = ld
 
-all: pre-build $(KERNEL) $(OS_IMAGE)
+define make-repo
+   for dir in $(kernel_src_dir) $(boot_src_dir); \
+   do \
+        mkdir -p $(objdir)/$$dir; \
+   done
+endef
+
+all: pre-build $(kernel) $(os_image)
 
 pre-build:
-	@mkdir -p $(OUT_DIR)
+	@mkdir -p $(objdir)
+	@$(call make-repo)
 
-$(KERNEL): $(ASM_OBJS) $(C_OBJS)
+$(kernel): $(asm_objs) $(c_objs)
 	@echo "  LD    $@"
 	$(V)$(LD) $(LDFLAGS) $^ -o $@
 
-$(OS_IMAGE): $(KERNEL)
+$(os_image): $(kernel)
 	$(V)cp $< iso/boot/
-	$(V)genisoimage -R                          \
-		-b boot/grub/grub    		\
-		-no-emul-boot                   \
-		-boot-load-size 4               \
-		-A os                           \
-		-input-charset utf8             \
-		-quiet                          \
-		-boot-info-table                \
-		-o $@	 			\
-		iso
+	$(V)genisoimage -R -b boot/grub/grub -no-emul-boot -boot-load-size 4 \
+                -A os -input-charset utf8 -quiet -boot-info-table -o $@ iso
 
 run: all
 	bochs -f tools/bochsrc.txt -q
 
-$(C_OBJS): $(C_SRCS)
+$(objdir)/%.o: %.c
 	@echo "  CC    $<"
-	$(V)$(CC) $(CFLAGS)  $< -o $@
+	$(V)$(CC) -c $(CFLAGS) $< -o $@
 
-$(ASM_OBJS): $(ASM_SRCS)
+$(objdir)/%.o: %.s
 	@echo "  ASM   $<"
 	$(V)$(AS) $(ASFLAGS) $< -o $@
 
 clean:
 	@rm -rf bin/
-	@rm -f iso/boo/$(KERNEL)
+	@rm -f iso/boot/$(kernel)
+
+.PHONY: all pre-build clean run

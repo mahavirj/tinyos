@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 char *strcpy(char *dest, const char *src)
 {
@@ -14,7 +14,7 @@ char *strcpy(char *dest, const char *src)
 
 char *strncpy(char *dest, const char *src, size_t n)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < n && src[i] != '\0'; i++)
 		dest[i] = src[i];
@@ -25,9 +25,20 @@ char *strncpy(char *dest, const char *src, size_t n)
 	return dest;
 }
 
-int strncmp(const char *s1, const char *s2, size_t n)
+int strcmp(const char *s1, const char *s2)
 {
 	int i;
+
+	for (i = 0; s1[i]; i++) {
+		if (s1[i] != s2[i])
+			return s1[i] - s2[i];
+	}
+	return 0;
+}
+
+int strncmp(const char *s1, const char *s2, size_t n)
+{
+	size_t i;
 
 	for (i = 0; i < n; i++) {
 		if (s1[i] != s2[i])
@@ -39,33 +50,29 @@ int strncmp(const char *s1, const char *s2, size_t n)
 	return 0;
 }
 
-#define ALIGN 4
 void *memcpy(void *dest, const void *src, size_t n)
 {
-	int index = 0;
+	size_t index = 0;
 	uint8_t *t_dest = (uint8_t *) dest;
 	uint8_t *t_src = (uint8_t *) src;
 
-	/* It is not possible to align both source and destination pointers,
-	 * following aligns destination only and then copies data
-	 * word-by-word, a little more efficient than byte copy
-	 */
+	if ((((size_t) dest ^ (size_t) src) & 0x3) == 0) {
+		/* We can align src and dest on word boundary */
+		int size = (size_t) dest & 0x3;
+		while (size-- && index < n) {
+			*t_dest++ = *t_src;
+			index++;
+		}
 
-	while ((index < n) && ((size_t) t_dest & ~(ALIGN-1))) {
-		*t_dest++ = *t_src++;
-		index++;
-	}	
-
-	uint32_t *w_dest = (uint32_t *) t_dest;
-	uint32_t *w_src = (uint32_t *) t_src;
-
-	while (index < (n - sizeof(uint32_t))) {
-		*w_dest++ = *w_src++;
-		index += sizeof(uint32_t);
+		uint32_t *w_dest = (uint32_t *) t_dest;
+		uint32_t *w_src = (uint32_t *) t_src;
+		while (index < (n - sizeof(uint32_t))) {
+			*w_dest++ = *w_src++;
+			index += sizeof(uint32_t);
+		}
+		t_dest = (uint8_t *) w_dest;
+		t_src = (uint8_t *) w_src;
 	}
-
-	t_dest = (uint8_t *) w_dest;
-	t_src = (uint8_t *) w_src;
 
 	while (index < n) {
 		*t_dest++ = *t_src++;
@@ -74,3 +81,4 @@ void *memcpy(void *dest, const void *src, size_t n)
 
 	return dest;
 }
+
