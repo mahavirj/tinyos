@@ -42,7 +42,7 @@ static void cls()
 
 	/* Again, we need the 'short' that will be used to
 	 * represent a space with color */
-	blank = 0x20 | (0xf << 8);
+	blank = 0x20 | (COLOR_ATTR << 8);
 
 	/* Sets the entire screen to spaces in our current
 	 * color */
@@ -56,13 +56,44 @@ static void cls()
 	move_cursor(_x, _y);
 }
 
-int k_write_char(char c)
+void k_write_char(char c)
 {
 	uint16_t *loc = fb + (_y * 80 + _x);
 	uint8_t attr = COLOR_ATTR;
 
-	*loc = c | (attr << 8);
-	_x++;
+	switch (c) {
+	case '\n':
+		_x = 0;
+		_y++;
+		break;
+	case '\r':
+		_x = 0;
+		break;
+	case ' ':
+		_x++;
+		break;
+	case 0x8:
+		_x--;
+		break;
+	default:
+		*loc = c | (attr << 8);
+		_x++;
+		break;
+	}
+
+	if (_x >= 80) {
+		_x = 0;
+		_y++;
+	}
+
+	move_cursor(_x, _y);
+	/* Handle scroll condition */
+}
+
+void k_write(char *buf, int len)
+{
+	while (len--)
+		k_write_char(*buf++);
 }
 
 void k_video_init()
