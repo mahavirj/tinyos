@@ -24,6 +24,23 @@ void outportb (unsigned short _port, unsigned char _data)
 static uint16_t *fb;
 static int _x, _y;
 
+/* If screen is full, empty last line */
+static void scroll()
+{
+	uint16_t blank;
+
+	blank = 0x20 | (COLOR_ATTR << 8);
+	if (_y >= 25) {
+		/* Ideally overlapping regions are not supported by memcpy, but here source
+		 * is greater than destination and hence there is no source overwrite issue
+		 */
+		memcpy(fb, fb + 80, (24 * 80 * 2));
+		/* Set last line as blank */
+		memsetw(fb + (24 * 80), blank, 80);
+		_y = 24;
+	}
+}
+
 static void move_cursor(int x, int y)
 {
 	int pos = y * 80 + x;
@@ -86,14 +103,62 @@ void k_write_char(char c)
 		_y++;
 	}
 
+	scroll();
 	move_cursor(_x, _y);
-	/* Handle scroll condition */
 }
 
-void k_write(char *buf, int len)
+void k_write(const char *buf)
 {
-	while (len--)
+	while (*buf)
 		k_write_char(*buf++);
+}
+
+void k_write_dec(const int num)
+{
+	int quot, i;
+	char rem;
+	char str[32];
+
+	quot = num;
+	i = 0;
+	do {
+		rem = (quot % 10) + '0';
+		quot /= 10;
+		str[i++] = rem;
+	} while (quot);
+
+	int start, end;
+	char temp;
+	for (end = i - 1, start = 0; start < end; end--, start++) {
+		temp = str[start];
+		str[start] = str[end];
+		str[end] = temp;
+	}
+
+	str[i] = '\0';
+	k_write(str);
+}
+
+void k_write_hex(const int num)
+{
+	int index = 32;
+	int val;
+
+	do {
+		index -= 4;
+		val = (num >> index) & 0xf;
+	} while (!val && index);
+
+	k_write("0x");
+	do {
+		if (val > 9)
+			val = 'A' + (val - 10);
+		else
+			val += '0';
+		k_write_char(val);
+		index -= 4;
+		val = (num >> index) & 0xf;
+	} while (index >= 0);
 }
 
 void k_video_init()
