@@ -60,7 +60,7 @@ void *memcpy(void *dest, const void *src, size_t n)
 		/* We can align src and dest on word boundary */
 		int size = (size_t) dest & 0x3;
 		while (size-- && index < n) {
-			*t_dest++ = *t_src;
+			*t_dest++ = *t_src++;
 			index++;
 		}
 
