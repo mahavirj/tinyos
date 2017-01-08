@@ -1,9 +1,11 @@
 #include <vga.h>
+#include <gdt.h>
 
 int kmain(void)
 {
 	int i;
 
+	init_gdt();
 	k_video_init();
 	for (i = 0; i < 24; i++) {
 		k_write("Hello World: ");
