@@ -1,3 +1,5 @@
+#include <vga.h>
+
 int kmain(void)
 {
 	int i;

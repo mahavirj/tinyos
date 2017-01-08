@@ -29,7 +29,8 @@ asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
 
 CFLAGS := -O2 -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
          -nostartfiles -nodefaultlibs -Wall -Wextra -MMD
-CFLAGS += -Iinclude/stdlib
+CFLAGS += -Iinclude/stdlib \
+	-Iinclude/drivers \
 
 LDFLAGS = -T ldscript/linker.ld
 ASFLAGS = -f elf
