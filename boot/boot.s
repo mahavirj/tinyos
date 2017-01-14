@@ -1,29 +1,45 @@
-global _start                   ; the entry symbol for ELF
+; Multiboot macros to make a few lines later more readable
+MULTIBOOT_PAGE_ALIGN	equ 	1<<0
+MULTIBOOT_MEMORY_INFO	equ 	1<<1
+MULTIBOOT_HEADER_MAGIC	equ 	0x1BADB002
+MULTIBOOT_HEADER_FLAGS	equ 	MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO
+MULTIBOOT_CHECKSUM	equ 	-(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
-MAGIC_NUMBER equ 0x1BADB002     ; define the magic number constant
-FLAGS        equ 0x0            ; multiboot flags
-CHECKSUM     equ -MAGIC_NUMBER  ; calculate the checksum
-; (magic number + checksum + flags should equal 0)
+[BITS 32]
 
+[EXTERN code]
+[EXTERN bss]
+[EXTERN end]
 
-section .text                   ; start of the text (code) section
-align 4                         ; the code must be 4 byte aligned
-dd MAGIC_NUMBER             	; write the magic number to the machine code,
-   dd FLAGS                    	; the flags,
-   dd CHECKSUM                 	; and the checksum_
-_start:                         ; the_startt label (defined as entry point in linker script)
-   mov eax, 0xCAFEBABE         	; place the number 0xCAFEBABE in the register eax
-   mov esp, kernel_stack + KERNEL_STACK_SIZE   ; point esp to the start of the
-                                                ; stack (end of memory area)
+mboot:
+	; This is the GRUB Multiboot header. A boot signature
+	dd MULTIBOOT_HEADER_MAGIC
+	dd MULTIBOOT_HEADER_FLAGS
+	dd MULTIBOOT_CHECKSUM
 
-extern kmain   			; kernel entry point
-   call kmain       		; call the function
-   .loop:
-   jmp .loop                   	; loop forever
+	; The linker script fills in the data for these ones!
+	dd mboot
+	dd code
+	dd bss
+	dd end
+	dd _start
 
-KERNEL_STACK_SIZE equ 4096                  ; size of stack in bytes
+[GLOBAL _start]
+[EXTERN kmain]
 
-section .bss
-align 4                                     ; align at 4 bytes
-kernel_stack:                               ; label points to beginning of memory
-	resb KERNEL_STACK_SIZE              ; reserve stack for the kernel
+; Kernel main entry point
+_start:
+	mov esp, _sys_stack
+	push ebx
+
+	cli
+	call kmain
+	jmp $
+
+; Here is the definition of our BSS section. Right now, we'll use
+; it just to store the stack. Remember that a stack actually grows
+; downwards, so we declare the size of the data before declaring
+; the identifier '_sys_stack'
+SECTION .bss
+	resb 8192               ; This reserves 8KBytes of memory here
+_sys_stack:
