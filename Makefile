@@ -27,7 +27,7 @@ asm_srcs := $(foreach dir, $(boot_src_dir), $(wildcard $(dir)/*.s))
 c_objs := $(c_srcs:%.c=$(objdir)/%.o)
 asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
 
-CFLAGS := -O2 -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
+CFLAGS := -g -O2 -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
          -nostartfiles -nodefaultlibs -Wall -Wextra -MMD
 CFLAGS += -Iinclude/stdlib \
 	-Iinclude/kernel \
