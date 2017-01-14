@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <string.h>
 
+extern void memsetw(void *src, uint16_t value, size_t size);
+
 unsigned char inportb (unsigned short _port)
 {
     unsigned char rv;

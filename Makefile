@@ -27,13 +27,11 @@ asm_srcs := $(foreach dir, $(boot_src_dir), $(wildcard $(dir)/*.s))
 c_objs := $(c_srcs:%.c=$(objdir)/%.o)
 asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
 
-CFLAGS := -g -O2 -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
-         -nostartfiles -nodefaultlibs -Wall -Wextra -MMD
-CFLAGS += -Iinclude/stdlib \
-	-Iinclude/kernel \
+CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -MMD
+CFLAGS += -Iinclude/kernel \
 	-Iinclude/drivers \
 
-LDFLAGS = -T ldscript/linker.ld
+LDFLAGS = -T ldscript/linker.ld -nostdlib -Wl,--build-id=none
 ASFLAGS = -f elf
 
 define make-repo
@@ -51,7 +49,7 @@ pre-build:
 
 $(kernel): $(asm_objs) $(c_objs)
 	@echo "  LD    $@"
-	$(V)$(LD) $(LDFLAGS) $^ -o $@
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
 $(os_image): $(kernel)
 	$(V)cp $< iso/boot/

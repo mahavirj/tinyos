@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <string.h>
+#include <stdlib.h>
 
 char *strcpy(char *dest, const char *src)
 {
