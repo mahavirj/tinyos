@@ -1,17 +1,20 @@
 #include <vga.h>
 #include <gdt.h>
 #include <idt.h>
+#include <helper.h>
 
 int kmain(void)
 {
-	int i;
+	int i = 0;
 
 	init_gdt();
 	init_idt();
 	k_video_init();
+	init_timer(100);
+	asm("sti");
 
-	for (i = 0; i < 24; i++)
-		printk("Hello World: %d %x\n", i * 250000, i * 128);
-
-	return 0;
+	while (1) {
+		printk("Hello World: %d:\n", i++);
+		wait_ms(5000);
+	}
 }

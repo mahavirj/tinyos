@@ -30,7 +30,7 @@ void printk(char *fmt, ...)
 			/* need a cast here since va_arg only
 			   takes fully promoted types */
 			c = (char) va_arg(ap, int);
-			k_write_char(c);	
+			k_write_char(c);
 			break;
 		}
 	}
