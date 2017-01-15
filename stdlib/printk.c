@@ -1,11 +1,12 @@
 #include <stdarg.h>
 #include <vga.h>
 
-void printk(char *fmt, ...)
+void printk(const char *fmt, ...)
 {
 	va_list ap;
 	int d, x;
-	char c, *s, *p;
+	char c, *s;
+	const char *p;
 
 	va_start(ap, fmt);
 	for (p = fmt; *p; p++) {

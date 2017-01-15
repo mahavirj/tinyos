@@ -2,6 +2,8 @@
 #include <gdt.h>
 #include <idt.h>
 #include <helper.h>
+#include <timer.h>
+#include <keyboard.h>
 
 int kmain(void)
 {
@@ -11,6 +13,7 @@ int kmain(void)
 	init_idt();
 	k_video_init();
 	init_timer(100);
+	init_keyboard();
 	asm("sti");
 
 	while (1) {

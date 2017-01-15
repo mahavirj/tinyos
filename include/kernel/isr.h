@@ -10,4 +10,5 @@ typedef struct {
 	uint32_t eip, cs, eflags, useresp, ss; // Pushed by the processor automatically.
 } registers_t;
 
+void irq_install_handler(int irq, void (*handler)(registers_t *r));
 #endif /* __ISR_H__ */
