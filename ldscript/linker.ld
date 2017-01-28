@@ -6,21 +6,21 @@ SECTIONS {
     .text ALIGN (0x1000) :   /* align at 4 KB */
     {
         code = .;
-	*(.text)             /* all text sections from all files */
+	*(.text*)             /* all text sections from all files */
         *(.rodata*)          /* all read-only data sections from all files */
     }
 
     .data ALIGN (0x1000) :   /* align at 4 KB */
     {
 	data = .;
-        *(.data)             /* all data sections from all files */
+        *(.data*)             /* all data sections from all files */
     }
 
     .bss ALIGN (0x1000) :    /* align at 4 KB */
     {
 	bss = .;
         *(COMMON)            /* all COMMON sections from all files */
-        *(.bss)              /* all bss sections from all files */
+        *(.bss*)              /* all bss sections from all files */
     }
 
     end = .;
