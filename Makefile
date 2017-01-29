@@ -47,7 +47,7 @@ pre-build:
 	@mkdir -p $(objdir)
 	@$(call make-repo)
 
-$(kernel): $(asm_objs) $(c_objs)
+$(kernel): ldscript/linker.ld $(asm_objs) $(c_objs)
 	@echo "  LD    $@"
 	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
