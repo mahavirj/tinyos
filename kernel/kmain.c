@@ -4,7 +4,10 @@
 #include <helper.h>
 #include <timer.h>
 #include <keyboard.h>
+#include <kmalloc.h>
+#include <paging.h>
 
+extern unsigned end;
 int kmain(void)
 {
 	int i = 0;
@@ -15,6 +18,8 @@ int kmain(void)
 	init_timer(100);
 	init_keyboard();
 	asm("sti");
+	mem_init(&end, 1U << 24);
+	init_paging();
 
 	while (1) {
 		printk("Hello World: %d:\n", i++);

@@ -85,5 +85,5 @@ void keyboard_handler(registers_t *r)
 void init_keyboard()
 {
 	/* Installs 'keyboard_handler' to IRQ1 */
-	irq_install_handler(1, keyboard_handler);
+	irq_install_handler(IRQ1, keyboard_handler);
 }

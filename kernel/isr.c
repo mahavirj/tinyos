@@ -2,13 +2,18 @@
 #include <vga.h>
 #include <helper.h>
 
-static void *irq_handlers[16];
+static void *irq_handlers[256];
 
 /* This gets called from our ASM interrupt handler stub */
-void isr_handler(registers_t *regs)
+void isr_handler(registers_t *r)
 {
-	printk("recieved interrupt: %d\n", regs->int_no);
-	if (regs->int_no < 0x20) {
+	/* This is a blank function pointer */
+	void (*handler)(registers_t *r);
+
+	handler = irq_handlers[r->int_no];
+	if (handler)
+		handler(r);
+	if (r->int_no < 0x20) {
 		printk("system generated exception, HALT!\n");
 		while(1);
 	}
@@ -34,7 +39,7 @@ void irq_handler(registers_t *r)
 
 	/* Find out if we have a custom handler to run for this
 	 *  IRQ, and then finally, run it */
-	handler = irq_handlers[r->int_no - 32];
+	handler = irq_handlers[r->int_no];
 	if (handler)
 		handler(r);
 

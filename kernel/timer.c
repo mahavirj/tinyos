@@ -26,7 +26,7 @@ void init_timer(int freq)
 {
 	timer_phase(freq);
 	/* Installs 'timer_handler' to IRQ0 */
-	irq_install_handler(0, timer_handler);
+	irq_install_handler(IRQ0, timer_handler);
 }
 
 void wait_ms(int ms)
