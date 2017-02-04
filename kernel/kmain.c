@@ -11,6 +11,7 @@ extern unsigned end;
 int kmain(void)
 {
 	int i = 0;
+	uint32_t *kmem_addr = (uint32_t *) 0xc0000000;
 
 	init_gdt();
 	init_idt();
@@ -18,8 +19,11 @@ int kmain(void)
 	init_timer(100);
 	init_keyboard();
 	asm("sti");
-	mem_init(&end, 1U << 24);
 	init_paging();
+	mem_init(kmem_addr, 1U << 24);
+	int *p = kmalloc(50);
+	int *q = kmalloc_page(50);
+	printk("Allocated @%x and @%x\n", p, q);
 
 	while (1) {
 		printk("Hello World: %d:\n", i++);

@@ -41,33 +41,43 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable)
 
 void switch_page_directory(page_directory_t *dir)
 {
-	asm volatile("mov %0, %%cr3":: "r"(&dir->tablesPhysical));
+	asm volatile("mov %0, %%cr3":: "r"(&dir->tables));
 	uint32_t cr0;
 	asm volatile("mov %%cr0, %0": "=r"(cr0));
 	cr0 |= 0x80000000; // Enable paging!
 	asm volatile("mov %0, %%cr0":: "r"(cr0));
 }
 
+#define PAGE_PRESENT (0x1)
+#define WRITE_MODE   (0x1 << 1)
+#define USER_MODE    (0x1 << 2)
+
+static page_table_t kernel_pt __attribute__((aligned(4096)));
+static page_table_t kmem_pt __attribute__((aligned(4096)));
+static page_directory_t kernel_pd;
 extern unsigned end;
+
 void init_paging()
 {
-	page_directory_t *kernel_pd;
-	kernel_pd = (page_directory_t *) kmalloc_page(sizeof(page_directory_t));
-	if (!kernel_pd)
-		printk("Allocation failure\n");
-	memset(kernel_pd, 0, sizeof(page_directory_t));
-	kernel_pd->tables[0] = (page_table_t *) kmalloc_page(sizeof(page_table_t));
-	if (!kernel_pd->tables[0])
-		printk("Allocation failure\n");
-	memset(kernel_pd->tables[0], 0 , sizeof(page_table_t));
-
+	/* Identity mapping for kernel and low memory area */
 	uint32_t phys, i;
 	for (phys = 0, i = 0; phys < (unsigned) &end; phys += 4096, i++) {
-		kernel_pd->tables[0]->pages[i].frame = (phys >> 12);
-		kernel_pd->tables[0]->pages[i].present = 1;
+		kernel_pt.pages[i].frame = (phys >> 12);
+		kernel_pt.pages[i].present = PAGE_PRESENT;
 	}
+	kernel_pd.tables[0] = (page_table_t *) ((uintptr_t) &kernel_pt | 0x1);
 
-	kernel_pd->tablesPhysical[0] = (uintptr_t) kernel_pd->tables[0] | 0x1;
+	/* Heap region reserved for kmalloc */
+	uint32_t end_4k = ((uintptr_t) &end + 0xfff) & ~(0xfffU);
+	for (i = 0; i < 1024; i++, end_4k += 4096) {
+		kmem_pt.pages[i].frame = (end_4k >> 12);
+		kmem_pt.pages[i].present = PAGE_PRESENT;
+	}
+	kernel_pd.tables[768] = (page_table_t *) ((uintptr_t) &kmem_pt | 0x1);
+
+	/* Last page table entry points to page table itself for getting physical addresses */
+	kernel_pd.tables[1023] = (page_table_t *) ((uintptr_t) &kernel_pd.tables | 0x1);
+
 	irq_install_handler(14, page_fault);
-	switch_page_directory(kernel_pd);
+	switch_page_directory(&kernel_pd);
 }
