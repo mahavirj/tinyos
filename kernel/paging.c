@@ -39,9 +39,9 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable)
 	page->user = (is_kernel) ? 0 : 1; // Should the page be user-mode?
 }
 
-void switch_page_directory(page_directory_t *dir)
+void switch_page_directory(void *pg_dir)
 {
-	asm volatile("mov %0, %%cr3":: "r"(&dir->tables));
+	asm volatile("mov %0, %%cr3":: "r"(pg_dir));
 	uint32_t cr0;
 	asm volatile("mov %%cr0, %0": "=r"(cr0));
 	cr0 |= 0x80000000; // Enable paging!
@@ -80,4 +80,33 @@ void init_paging()
 
 	irq_install_handler(14, page_fault);
 	switch_page_directory(&kernel_pd);
+}
+
+void *virt_to_phys(void *virt)
+{
+	int pdi = (uint32_t) virt >> 22;
+	int pti = ((uint32_t) virt >> 12) & 0x3ff;
+
+	/* Last entry in page directory */
+	uint32_t *pde = (uint32_t *) 0xfffff000;
+	if ((*pde != 0) && (*pde & 0x1)) {
+		uint32_t *pte = (uint32_t *) (0xffc00000 + (0x1000 * pdi));
+		if ((*pte != 0))
+			return (void *) ((pte[pti] & ~(0xfff)) |
+						 ((uint32_t) virt & 0xfff));
+	}
+	/* FIXME: is it correct return value in failure */
+	return NULL;
+}
+
+void clone_directory()
+{
+	page_directory_t *new_pd = kmalloc_page(sizeof(page_directory_t));
+	if (!new_pd) {
+		printk("%s: allocation failure\n", __func__);
+		return;
+	}
+	memcpy(new_pd, &kernel_pd, sizeof(page_directory_t));
+	int *tmp = virt_to_phys(new_pd);
+	switch_page_directory(tmp);
 }
