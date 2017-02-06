@@ -6,6 +6,7 @@
  */
 
 #include <kmalloc.h>
+#include <string.h>
 
 /* #define MEM_DEBUG */
 
@@ -164,6 +165,22 @@ void kfree_page(void *addr)
 {
 	kfree(*((void **)addr - 1));
 	return;
+}
+
+void *kcalloc_page(size_t size)
+{
+	void *p = kmalloc_page(size);
+	if (p)
+		memset(p, 0, size);
+	return p;
+}
+
+void *kcalloc(size_t size)
+{
+	void *p = kmalloc(size);
+	if (p)
+		memset(p, 0, size);
+	return p;
 }
 
 int mem_init(void *mem_start, size_t size)
