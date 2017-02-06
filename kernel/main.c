@@ -24,7 +24,6 @@ int kmain(void)
 	int *p = kmalloc(50);
 	int *q = kmalloc_page(50);
 	printk("Allocated @%x and @%x\n", p, q);
-	clone_directory();
 
 	while (1) {
 		printk("Hello World: %d:\n", i++);

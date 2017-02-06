@@ -52,27 +52,26 @@ void switch_page_directory(void *pg_dir)
 #define WRITE_MODE   (0x1 << 1)
 #define USER_MODE    (0x1 << 2)
 
+page_directory_t kernel_pd __attribute__((aligned(4096)));
 static page_table_t kernel_pt __attribute__((aligned(4096)));
 static page_table_t kmem_pt __attribute__((aligned(4096)));
-static page_directory_t kernel_pd;
+
 extern unsigned end;
 
 void init_paging()
 {
 	/* Identity mapping for kernel and low memory area */
 	uint32_t phys, i;
-	for (phys = 0, i = 0; phys < (unsigned) &end; phys += 4096, i++) {
-		kernel_pt.pages[i].frame = (phys >> 12);
-		kernel_pt.pages[i].present = PAGE_PRESENT;
-	}
+	for (phys = 0, i = 0; phys < (unsigned) &end; phys += 4096, i++)
+		kernel_pt.pages[i] = phys | PAGE_PRESENT;
+
 	kernel_pd.tables[0] = (page_table_t *) ((uintptr_t) &kernel_pt | 0x1);
 
 	/* Heap region reserved for kmalloc */
 	uint32_t end_4k = ((uintptr_t) &end + 0xfff) & ~(0xfffU);
-	for (i = 0; i < 1024; i++, end_4k += 4096) {
-		kmem_pt.pages[i].frame = (end_4k >> 12);
-		kmem_pt.pages[i].present = PAGE_PRESENT;
-	}
+	for (i = 0; i < 1024; i++, end_4k += 4096)
+		kmem_pt.pages[i] = end_4k | PAGE_PRESENT;
+
 	kernel_pd.tables[768] = (page_table_t *) ((uintptr_t) &kmem_pt | 0x1);
 
 	/* Last page table entry points to page table itself for getting physical addresses */
@@ -99,14 +98,41 @@ void *virt_to_phys(void *virt)
 	return NULL;
 }
 
-void clone_directory()
+page_directory_t *clone_directory(page_directory_t *src)
 {
-	page_directory_t *new_pd = kmalloc_page(sizeof(page_directory_t));
+	page_directory_t *new_pd = kcalloc_page(sizeof(page_directory_t));
 	if (!new_pd) {
 		printk("%s: allocation failure\n", __func__);
-		return;
+		return NULL;
 	}
-	memcpy(new_pd, &kernel_pd, sizeof(page_directory_t));
+
+	int i, j;
+	for (i = 0; i < 1024; i++) {
+		if (kernel_pd.tables[i] == src->tables[i]) {
+			new_pd->tables[i] = src->tables[i];
+		} else {
+			new_pd->tables[i] = kcalloc_page(sizeof(page_table_t));
+			if (!new_pd->tables[i]) {
+				printk("%s: allocation failure\n", __func__);
+				return NULL;
+			}
+			for (j = 0; j < 1024; j++) {
+				if (!src->tables[i]->pages[j])
+					continue;
+				new_pd->tables[i]->pages[j] = (uint32_t) kcalloc_page(0x1000);
+				if (!new_pd->tables[i]->pages[j]) {
+					printk("%s: allocation failure\n", __func__);
+					return NULL;
+				}
+				memcpy((void *) new_pd->tables[i]->pages[j],
+					 (void *) ((uintptr_t) src->tables[i]->pages[j] & ~(0x3ff)), 0x1000);
+				new_pd->tables[i]->pages[j] =
+					 (uintptr_t) new_pd->tables[i]->pages[j] | PAGE_PRESENT;
+			}
+		}
+	}
+
 	int *tmp = virt_to_phys(new_pd);
 	switch_page_directory(tmp);
+	return new_pd;
 }

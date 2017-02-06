@@ -14,7 +14,7 @@ typedef struct page {
 } page_t;
 
 typedef struct page_table {
-	page_t pages[1024];
+	uint32_t pages[1024];
 } page_table_t;
 
 typedef struct page_directory {
