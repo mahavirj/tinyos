@@ -5,6 +5,8 @@
 #include <string.h>
 #include <paging.h>
 
+page_directory_t *current_pd;
+
 void page_fault(registers_t *regs)
 {
 	// A page fault has occurred.
@@ -46,6 +48,7 @@ void switch_page_directory(void *pg_dir)
 	asm volatile("mov %%cr0, %0": "=r"(cr0));
 	cr0 |= 0x80000000; // Enable paging!
 	asm volatile("mov %0, %%cr0":: "r"(cr0));
+	current_pd = pg_dir;
 }
 
 #define PAGE_PRESENT (0x1)
@@ -132,7 +135,7 @@ page_directory_t *clone_directory(page_directory_t *src)
 		}
 	}
 
-	int *tmp = virt_to_phys(new_pd);
-	switch_page_directory(tmp);
+	int *phys_new_pd = virt_to_phys(new_pd);
+	switch_page_directory(phys_new_pd);
 	return new_pd;
 }
