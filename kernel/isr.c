@@ -4,6 +4,46 @@
 
 static void *irq_handlers[256];
 
+/* This is a simple string array. It contains the message that
+ *  corresponds to each and every exception. We get the correct
+ *  message by accessing like:
+ *  exception_message[interrupt_number] */
+const char *exception_messages[] =
+{
+	"Division By Zero",
+	"Debug",
+	"Non Maskable Interrupt",
+	"Breakpoint Exception",
+	"Into Detected Overflow Exception",
+	"Out of Bounds Exception",
+	"Invalid Opcode Exception",
+	"No Coprocessor Exception",
+	"Double Fault Exception",
+	"Coprocessor Segment Overrun Exception",
+	"Bad TSS Exception",
+	"Segment Not Present Exception",
+	"Stack Fault Exception",
+	"General Protection Fault Exception",
+	"Page Fault Exception",
+	"Unknown Interrupt Exception",
+	"Coprocessor Fault Exception",
+	"Alignment Check Exception",
+	"Machine Check Exception",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+};
+
 /* This gets called from our ASM interrupt handler stub */
 void isr_handler(registers_t *r)
 {
@@ -14,7 +54,8 @@ void isr_handler(registers_t *r)
 	if (handler)
 		handler(r);
 	if (r->int_no < 0x20) {
-		printk("system generated exception, HALT!\n");
+		printk("system generated exception, HALT! %d\n", r->int_no);
+		printk("%s\n", exception_messages[r->int_no]);
 		while(1);
 	}
 }
