@@ -1,6 +1,18 @@
 #ifndef __HELPER_H__
 #define __HELPER_H__
 
+/* Enable interrupts on local processor */
+static inline void sti()
+{
+	asm volatile("sti");
+}
+
+/* Disable interrupts on local processor */
+static inline void cli()
+{
+	asm volatile("cli");
+}
+
 static inline unsigned char inportb (unsigned short _port)
 {
     unsigned char rv;
