@@ -2,6 +2,7 @@
 # Compiler GCC
 CC := gcc
 AS := nasm
+OBJDUMP:= objdump
 
 # Verbose build pass verbose=1
 ifeq ($(verbose),1)
@@ -50,6 +51,7 @@ pre-build:
 $(kernel): ldscript/linker.ld $(asm_objs) $(c_objs)
 	@echo "  LD    $@"
 	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(V)$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(objdir)/kernel.sym
 
 $(os_image): $(kernel)
 	$(V)cp $< iso/boot/
