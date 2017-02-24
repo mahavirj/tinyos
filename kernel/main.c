@@ -6,11 +6,31 @@
 #include <keyboard.h>
 #include <kmalloc.h>
 #include <paging.h>
+#include <task.h>
+
+static void t2()
+{
+	int val = 1000;
+
+	while (1) {
+		printk("Hello from task2 %d\n", val++);
+		wait_ms(5000);
+	}
+}
+
+static void t1()
+{
+	int val = 500;
+
+	while (1) {
+		printk("Hello from task1 %d\n", val++);
+		wait_ms(1000);
+	}
+}
 
 extern unsigned end;
 int kmain(void)
 {
-	int i = 0;
 	uint32_t *kmem_addr = (uint32_t *) 0xc0000000;
 
 	init_gdt();
@@ -18,15 +38,11 @@ int kmain(void)
 	k_video_init();
 	init_timer(100);
 	init_keyboard();
-	asm("sti");
 	init_paging();
-	mem_init(kmem_addr, 1U << 24);
-	int *p = kmalloc(50);
-	int *q = kmalloc_page(50);
-	printk("Allocated @%x and @%x\n", p, q);
-
-	while (1) {
-		printk("Hello World: %d:\n", i++);
-		wait_ms(5000);
-	}
+	mem_init(kmem_addr, 1U << 22);
+	create_task(t1);
+	create_task(t2);
+	tiny_scheduler();
+	printk("HALT! Unreachable code\n");
+	while (1);
 }

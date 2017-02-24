@@ -1,5 +1,6 @@
 #include <isr.h>
 #include <helper.h>
+#include <task.h>
 
 /* This will keep track of how many ticks that the system
  *  has been running for */
@@ -10,6 +11,9 @@ static void timer_handler(registers_t *r)
 	(void) r;
 	/* Increment our 'tick count' */
 	timer_ticks++;
+	/* Invoke scheduler */
+	if (current_task)
+		swtch(&current_task->context, cpu->context);
 }
 
 static void timer_phase(int hz)

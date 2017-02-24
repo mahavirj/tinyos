@@ -113,6 +113,7 @@ IRQ   15,   47
 
  ; In isr.c
 [EXTERN irq_handler]
+[GLOBAL task_ret]
 
 ; This is our common IRQ stub. It saves the processor state, sets
 ; up for kernel mode segments, calls the C-level fault handler,
@@ -134,6 +135,7 @@ irq_common_stub:
    call irq_handler
 
    add esp, 4
+task_ret:
    pop ebx        ; reload the original data segment descriptor
    mov ds, bx
    mov es, bx

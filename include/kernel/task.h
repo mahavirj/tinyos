@@ -4,12 +4,36 @@
 #include <paging.h>
 #include <list.h>
 
-struct task {
-	int id;                // Process ID.
-	uint32_t esp, ebp;       // Stack and base pointers.
-	uint32_t eip;            // Instruction pointer.
-	page_directory_t *pd; // Page directory.
-	list_head_t next;     // The next task in a linked list.
+/* Callee saved register context */
+struct context {
+	uint32_t edi;
+	uint32_t esi;
+	uint32_t ebx;
+	uint32_t ebp;
+	uint32_t eip;
 };
+
+/* Task control block */
+struct task {
+	int id;                  // Process ID.
+	int state;		 // State of task, running, blocked etc.
+	uint8_t *kstack;	 // Kernel stack
+	registers_t *irqf;       // Registers context saved in irq
+	struct context *context; // Callee saved register context
+	page_directory_t *pd;    // Page directory.
+	list_head_t next;        // The next task in a linked list.
+};
+
+/* Per CPU scheduler data */
+struct cpu {
+	struct context *context;
+};
+
+extern struct cpu *cpu;
+extern struct task *current_task;
+void tiny_scheduler(void);
+int create_task(void (*fn_ptr)(void));
+void swtch(struct context **old, struct context *new);
+
 
 #endif /* __TASK_H__ */

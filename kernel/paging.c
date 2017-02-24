@@ -41,7 +41,7 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable)
 	page->user = (is_kernel) ? 0 : 1; // Should the page be user-mode?
 }
 
-void switch_page_directory(void *pg_dir)
+void switch_pgdir(void *pg_dir)
 {
 	asm volatile("mov %0, %%cr3":: "r"(pg_dir));
 	uint32_t cr0;
@@ -60,6 +60,28 @@ static page_table_t kernel_pt __attribute__((aligned(4096)));
 static page_table_t kmem_pt __attribute__((aligned(4096)));
 
 extern unsigned end;
+static uint32_t stack_mem;
+
+int setup_stack(page_directory_t *pd, size_t size, uint32_t *stack)
+{
+	int i;
+	uint32_t stack_virtual = 0x400000;
+
+	/* Align size to 4K boundary */
+	size = (size + 0xfff) & ~(0xfff);
+
+	if (stack_mem + size > 0x400000)
+		/* No more space */
+		return -1;
+
+	page_table_t *pt = (page_table_t *) ((uintptr_t) pd->tables[0] & ~(0xfff));
+	for (i = 0; size; i++, size -= 4096, stack_mem += 4096)
+		pt->pages[(stack_virtual - size) / 4096] = stack_mem | PAGE_PRESENT;
+
+	*stack = stack_virtual;
+
+	return 0;
+}
 
 void init_paging()
 {
@@ -81,7 +103,7 @@ void init_paging()
 	kernel_pd.tables[1023] = (page_table_t *) ((uintptr_t) &kernel_pd.tables | 0x1);
 
 	irq_install_handler(14, page_fault);
-	switch_page_directory(&kernel_pd);
+	switch_pgdir(&kernel_pd);
 }
 
 void *virt_to_phys(void *virt)
@@ -127,15 +149,15 @@ page_directory_t *clone_directory(page_directory_t *src)
 					printk("%s: allocation failure\n", __func__);
 					return NULL;
 				}
+				/* FIXME: need to copy from virtual to virtual */
 				memcpy((void *) new_pd->tables[i]->pages[j],
-					 (void *) ((uintptr_t) src->tables[i]->pages[j] & ~(0x3ff)), 0x1000);
+					 (void *) ((uintptr_t) src->tables[i]->pages[j] & ~(0xfff)), 0x1000);
 				new_pd->tables[i]->pages[j] =
-					 (uintptr_t) new_pd->tables[i]->pages[j] | PAGE_PRESENT;
+					 (uintptr_t) new_pd->tables[i]->pages[j] |
+					 ((uintptr_t) src->tables[i]->pages[j] & 0xfff);
 			}
 		}
 	}
 
-	int *phys_new_pd = virt_to_phys(new_pd);
-	switch_page_directory(phys_new_pd);
 	return new_pd;
 }

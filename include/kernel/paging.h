@@ -22,6 +22,9 @@ typedef struct page_directory {
 	page_table_t *tables[1024];
 } page_directory_t;
 
+extern page_directory_t *current_pd;
+extern page_directory_t kernel_pd;
+
 /**
   Sets up the environment, page directories etc and
   enables paging.
@@ -32,7 +35,7 @@ void init_paging();
   Causes the specified page directory to be loaded into the
   CR3 register.
  **/
-void switch_page_directory(void *pg_dir);
+void switch_pgdir(void *pg_dir);
 
 /**
   Retrieves a pointer to the page required.
@@ -44,6 +47,11 @@ page_t *get_page(uint32_t address, int make, page_directory_t *dir);
 /**
   Handler for page faults.
  **/
-void page_fault(registers_t *regs); 
+void page_fault(registers_t *regs);
+
+page_directory_t *clone_directory(page_directory_t *src);
+
+/* Virtual to physical conversion */
+void *virt_to_phys(void *addr);
 
 #endif /* PAGING_H */
