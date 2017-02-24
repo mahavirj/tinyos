@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <helper.h>
+#include <paging.h>
 
 extern void memsetw(void *src, uint16_t value, size_t size);
 
@@ -154,6 +155,6 @@ void k_write_hex(const int num)
 
 void k_video_init()
 {
-	fb = (uint16_t *) 0xB8000;
+	fb = (uint16_t *) (KERNBASE + 0xB8000);
 	cls();
 }

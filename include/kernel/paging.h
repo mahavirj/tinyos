@@ -3,6 +3,16 @@
 
 #include <isr.h>
 
+#define PGSIZE 		4096
+#define PGSHIFT		12
+#define PTXSHIFT	12
+#define PDXSHIFT	22
+
+#define KERNBASE 	0xC0000000
+#define PTE_P 		0x001
+#define PTE_W 		0x002
+#define PTE_PS 		0x080
+
 typedef struct page {
 	uint32_t present    : 1;   // Page present in memory
 	uint32_t rw         : 1;   // Read-only if clear, readwrite if set
@@ -24,6 +34,16 @@ typedef struct page_directory {
 
 extern page_directory_t *current_pd;
 extern page_directory_t kernel_pd;
+
+static inline void *phys_to_virt(void *phys)
+{
+	return (void *) ((uintptr_t) phys + KERNBASE);
+}
+
+static inline void *virt_to_phys(void *virt)
+{
+	return (void *) ((uintptr_t) virt - KERNBASE);
+}
 
 /**
   Sets up the environment, page directories etc and

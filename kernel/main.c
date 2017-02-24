@@ -21,6 +21,7 @@ static void t2()
 static void t1()
 {
 	int val = 500;
+	create_task(t2);
 
 	while (1) {
 		printk("Hello from task1 %d\n", val++);
@@ -31,18 +32,24 @@ static void t1()
 extern unsigned end;
 int kmain(void)
 {
-	uint32_t *kmem_addr = (uint32_t *) 0xc0000000;
-
 	init_gdt();
 	init_idt();
 	k_video_init();
 	init_timer(100);
 	init_keyboard();
 	init_paging();
-	mem_init(kmem_addr, 1U << 22);
+	mem_init(&end, 1U << 20);
 	create_task(t1);
-	create_task(t2);
+
 	tiny_scheduler();
 	printk("HALT! Unreachable code\n");
 	while (1);
 }
+
+__attribute__((aligned(PGSIZE))) page_directory_t entrypgdir = {
+	/* Identiy mapping for first 4M memory */
+	.tables[0] = (page_table_t *) ((0) | PTE_P | PTE_W | PTE_PS),
+	/* Higher address mapping for 4M */
+	.tables[KERNBASE >> PDXSHIFT] =
+		 (page_table_t *) ((0) | PTE_P | PTE_W | PTE_PS),
+};

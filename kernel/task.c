@@ -4,6 +4,7 @@
 #include <vga.h>
 #include <wait_queue.h>
 #include <helper.h>
+#include <paging.h>
 
 enum task_state {
 	TASK_BLOCKED = 1,
@@ -117,6 +118,6 @@ void tiny_scheduler()
 		/* Switch context */
 		swtch(&cpu->context, t->context);
 		/* Switch page directory to scheduler code */
-		switch_pgdir(&kernel_pd);
+		switch_pgdir(virt_to_phys(&kernel_pd));
 	}
 }
