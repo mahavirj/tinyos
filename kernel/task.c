@@ -97,6 +97,7 @@ void tiny_scheduler()
 {
 	for (;;) {
 		sti();
+
 		/* Remove first entry from wait queue */
 		list_head_t *node = wait_queue_remove(wq_h);
 		if (!node)

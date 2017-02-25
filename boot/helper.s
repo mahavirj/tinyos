@@ -22,8 +22,3 @@ idt_load:
     mov eax, [esp+4]
     lidt [eax]
     ret
-
-[GLOBAL read_eip]
-read_eip:
-  pop eax
-  jmp eax
