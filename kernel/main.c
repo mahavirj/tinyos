@@ -49,7 +49,7 @@ int kmain(void)
 __attribute__((aligned(PGSIZE))) page_directory_t entrypgdir = {
 	/* Identiy mapping for first 4M memory */
 	.tables[0] = (page_table_t *) ((0) | PTE_P | PTE_W | PTE_PS),
-	/* Higher address mapping for 4M */
+	/* Higher address mapping for 4M memory */
 	.tables[KERNBASE >> PDXSHIFT] =
 		 (page_table_t *) ((0) | PTE_P | PTE_W | PTE_PS),
 };

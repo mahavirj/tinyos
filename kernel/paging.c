@@ -50,7 +50,7 @@ void init_paging()
 	for (phys = 0, i = 0; phys < 0x400000; phys += 4096, i++)
 		kernel_pt.pages[i] = phys | PTE_P;
 
-	kernel_pd.tables[768] = (page_table_t *)
+	kernel_pd.tables[KERNBASE >> PDXSHIFT] = (page_table_t *)
 			 ((uintptr_t) virt_to_phys(&kernel_pt) | 0x1);
 
 	irq_install_handler(14, page_fault);
