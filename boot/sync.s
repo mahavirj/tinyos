@@ -1,12 +1,13 @@
 ; Intel syntax
 
-locked:                      ; The lock variable. 1 = locked, 0 = unlocked.
-     dd      0
+[GLOBAL spin_lock]
 
 spin_lock:
+     mov ecx, [esp + 4]
+
      mov     eax, 1          ; Set the EAX register to 1.
 
-     xchg    eax, [locked]   ; Atomically swap the EAX register with
+     xchg    eax, [ecx]   ; Atomically swap the EAX register with
                              ;  the lock variable.
                              ; This will always store 1 to the lock, leaving
                              ;  the previous value in the EAX register.
@@ -24,10 +25,13 @@ spin_lock:
      ret                     ; The lock has been acquired, return to the calling
                              ;  function.
 
+[GLOBAL spin_unlock]
+
 spin_unlock:
+     mov ecx, [esp + 4]
      mov     eax, 0          ; Set the EAX register to 0.
 
-     xchg    eax, [locked]   ; Atomically swap the EAX register with
+     xchg    eax, [ecx]   ; Atomically swap the EAX register with
                              ;  the lock variable.
 
      ret                     ; The lock has been released.
