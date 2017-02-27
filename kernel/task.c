@@ -96,7 +96,7 @@ void tiny_scheduler()
 		list_for_each(node, task_list) {
 			/* Get task struct */
 			struct task *t = list_entry(node, struct task, next);
-			if (t->state != TASK_READY)
+			if (!t || t->state != TASK_READY)
 				continue;
 			/* Set task state to running */
 			t->state = TASK_RUNNING;
