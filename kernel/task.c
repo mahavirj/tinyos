@@ -6,19 +6,12 @@
 #include <helper.h>
 #include <paging.h>
 
-enum task_state {
-	TASK_BLOCKED = 1,
-	TASK_RUNNING = 2,
-	TASK_READY = 3,
-};
-
-/* FIXME: wait queue used for holding tasks in ready queue */
-static wq_handle wq_h;
+/* Task list */
+list_head_t *task_list;
 /* Current task running, should be in per CPU data */
 struct task *current_task;
 /* Per CPU scheduler context */
-struct cpu cpu1;
-struct cpu *cpu = &cpu1;
+struct cpu *cpu;
 /* PID of task, will be useful in fork */
 static int pid;
 
@@ -26,7 +19,6 @@ extern void task_ret();
 
 int create_task(void (*fn_ptr)(void))
 {
-	int ret;
 	struct task *init;
 
 	/* Allocate task control block */
@@ -44,12 +36,13 @@ int create_task(void (*fn_ptr)(void))
 	}
 
 	/* Initialize wait queue if not already */
-	if (!wq_h) {
-		ret = wait_queue_init(&wq_h);
-		if (ret != 0) {
-			printk("wq init failed\n");
-			return ret;
+	if (!task_list) {
+		task_list = (list_head_t *) kmalloc(sizeof(list_head_t));
+		if (!task_list) {
+			printk("malloc failed\n");
+			return -1;
 		}
+		INIT_LIST_HEAD(task_list);
 	}
 
 	/* Clone page directory, kernel code/heap is linked (not copied),
@@ -83,42 +76,38 @@ int create_task(void (*fn_ptr)(void))
 	init->irqf->eip = (uint32_t) fn_ptr;
 
 	/* Initialize wait queue with first task */
-	wait_queue_insert(wq_h, &init->next);
+	list_add(&init->next, task_list);
 
 	/* Set state for task */
-	cli();
 	init->state = TASK_READY;
-	sti();
 
 	return 0;
 }
 
 void tiny_scheduler()
 {
+	/* Scheduler context */
+	cpu = (struct cpu *) kcalloc(sizeof(struct cpu));
+	if (!cpu)
+		return;
+
 	for (;;) {
-		sti();
-
-		/* Remove first entry from wait queue */
-		list_head_t *node = wait_queue_remove(wq_h);
-		if (!node)
-			/* PANIC, Looks like init task not yet created */
-			return;
-
-		/* Insert entry to tail, assuming round robin */
-		wait_queue_insert(wq_h, node);
-
-		/* Get task struct */
-		struct task *t = list_entry(node, struct task, next);
-		if (t->state != TASK_READY)
-			continue;
-		/* Set current task */
-		current_task = t;
-
-		/* Switch page directory to new task */
-		switch_pgdir(t->pd);
-		/* Switch context */
-		swtch(&cpu->context, t->context);
-		/* Switch page directory to scheduler code */
-		switch_pgdir(virt_to_phys(&kernel_pd));
+		list_head_t *node;
+		list_for_each(node, task_list) {
+			/* Get task struct */
+			struct task *t = list_entry(node, struct task, next);
+			if (t->state != TASK_READY)
+				continue;
+			/* Set task state to running */
+			t->state = TASK_RUNNING;
+			/* Set current task */
+			current_task = t;
+			/* Switch page directory to new task */
+			switch_pgdir(t->pd);
+			/* Switch context */
+			swtch(&cpu->context, t->context);
+			/* Switch page directory to scheduler code */
+			switch_pgdir(virt_to_phys(&kernel_pd));
+		}
 	}
 }

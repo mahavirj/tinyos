@@ -4,6 +4,12 @@
 #include <paging.h>
 #include <list.h>
 
+enum task_state {
+	TASK_RUNNING = 2,
+	TASK_READY = 3,
+	TASK_SLEEPING = 4,
+};
+
 /* Callee saved register context */
 struct context {
 	uint32_t edi;
