@@ -14,6 +14,13 @@ To build operating system (assuming gcc, nasm installed),
 To run (assuming bochs, bochs-sdl installed),
 * $ make run
 
+To run under QEMU
+* $ make qemu
+
+To run under QEMU with debugging support (GDB)
+* $ make qemu_gdb
+  (Attach GDB, required commands already provided in .gdbinit file in top level dir)
+
 
 # References
 
