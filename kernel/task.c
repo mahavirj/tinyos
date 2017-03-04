@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <string.h>
 #include <task.h>
 #include <kmalloc.h>
@@ -9,9 +10,7 @@
 /* Task list */
 static list_head_t *task_list;
 /* Current task running, should be in per CPU data */
-static struct task *current_task;
-/* Per CPU scheduler context */
-static struct cpu *cpu;
+static struct task *current_task, *init_task;
 /* PID of task, will be useful in fork */
 static int pid;
 
@@ -19,18 +18,18 @@ extern void task_ret();
 
 int create_task(void (*fn_ptr)(void))
 {
-	struct task *init;
+	struct task *t;
 
 	/* Allocate task control block */
-	init = (struct task *) kcalloc(sizeof(struct task));
-	if (!init) {
+	t = (struct task *) kcalloc(sizeof(struct task));
+	if (!t) {
 		printk("malloc failed\n");
 		return -1;
 	}
 
 	/* Allocate task stack, fixed to 4K for now */
-	init->kstack = (uint8_t *) kcalloc_page(4096);
-	if (!init->kstack) {
+	t->kstack = (uint8_t *) kcalloc_page(STACK_SIZE);
+	if (!t->kstack) {
 		printk("malloc failed\n");
 		return -1;
 	}
@@ -57,29 +56,32 @@ int create_task(void (*fn_ptr)(void))
          * with initial return point into `exit` routine of exception
          * handler.
          */
-	init->id = ++pid;
-	init->pd = virt_to_phys(new_dir);
-	char *sp = (char *) ((uint32_t) init->kstack + 4096);
-	sp -= sizeof(*init->irqf);
-	init->irqf = (registers_t *) sp;
-	memset(init->irqf, 0, sizeof(*init->irqf));
-	sp -= sizeof(*init->context);
-	init->context = (struct context *) sp;
-	memset(init->context, 0, sizeof(*init->context));
-	init->context->eip = (uint32_t) task_ret;
+	t->id = ++pid;
+	t->pd = virt_to_phys(new_dir);
+	char *sp = (char *) ((uint32_t) t->kstack + STACK_SIZE);
+	sp -= sizeof(*t->irqf);
+	t->irqf = (registers_t *) sp;
+	memset(t->irqf, 0, sizeof(*t->irqf));
+	sp -= sizeof(*t->context);
+	t->context = (struct context *) sp;
+	memset(t->context, 0, sizeof(*t->context));
+	t->context->eip = (uint32_t) task_ret;
 
 	/* FIXME: remove code segment, data segment related hardcodings */
-	init->irqf->cs = 0x8;
-	init->irqf->ds = 0x10;
-	init->irqf->eflags = 0x200;
-	init->irqf->esp = (uint32_t) init->kstack + 4096;
-	init->irqf->eip = (uint32_t) fn_ptr;
+	t->irqf->cs = 0x8;
+	t->irqf->ds = 0x10;
+	t->irqf->eflags = 0x200;
+	t->irqf->esp = (uint32_t) t->kstack + STACK_SIZE;
+	t->irqf->eip = (uint32_t) fn_ptr;
 
 	/* Initialize wait queue with first task */
-	list_add(&init->next, task_list);
+	list_add_tail(&t->next, task_list);
 
 	/* Set state for task */
-	init->state = TASK_READY;
+	t->state = TASK_READY;
+
+	if (!init_task)
+		init_task = t;
 
 	return 0;
 }
@@ -109,42 +111,80 @@ void task_wakeup(void *resource)
 
 void sched()
 {
-	swtch(&current_task->context, cpu->context);
+	tiny_schedule();
 }
 
 void yield()
 {
 	if (current_task && current_task->state == TASK_RUNNING) {
 		current_task->state = TASK_READY;
-		swtch(&current_task->context, cpu->context);
+		tiny_schedule();
 	}
 }
 
-void tiny_scheduler()
+void trace_tasks()
 {
-	/* Scheduler context */
-	cpu = (struct cpu *) kcalloc(sizeof(struct cpu));
-	if (!cpu)
-		return;
-
-	for (;;) {
-		struct task *t;
-		list_for_each_entry(t, task_list, next) {
-			/* Validate task struct */
-			if (!t || t->state != TASK_READY)
-				continue;
-			/* Switch page directory to new task */
-			switch_pgdir(t->pd);
-			/* Set current task */
-			current_task = t;
-			/* Set task state to running */
-			t->state = TASK_RUNNING;
-			/* Switch context */
-			swtch(&cpu->context, t->context);
-			cli();
-			current_task = NULL;
-			/* Switch page directory to scheduler code */
-			switch_pgdir(virt_to_phys(&kernel_pd));
+	list_head_t *node;
+	struct task *t;
+	cli();
+	list_for_each(node, task_list) {
+		/* Validate task struct */
+		t = list_entry(node, struct task, next);
+		if (!t) {
+			printk("Err! Task is null\n");
+			continue;
 		}
+		printk("Task pid: %d, state: %d\n", t->id, t->state);
 	}
+	sti();
+}
+
+void init_scheduler()
+{
+	if (!init_task) {
+		printk("Scheduler invoked before creating task\n");
+		return;
+	}
+	current_task = init_task;
+	load_context(current_task->context);
+}
+
+void tiny_schedule()
+{
+	struct task *new_task, *prev_task;
+	list_head_t *node;
+	bool found = false;
+
+	/* Globally disable interrupts, can be called from `yield` */
+	cli();
+
+	list_for_each(node, task_list) {
+		/* Validate task struct */
+		new_task = list_entry(node, struct task, next);
+		if (!new_task || new_task->state != TASK_READY)
+			continue;
+
+		/* Make this last for round robin */
+		list_del(&new_task->next);
+		list_add_tail(&new_task->next, task_list);
+		found = true;
+		break;
+	}
+
+	if (found) {
+		/* Switch page directory to new task */
+		switch_pgdir(new_task->pd);
+
+		prev_task = current_task;
+		/* Set current task */
+		current_task = new_task;
+
+		/* Set task state to running */
+		new_task->state = TASK_RUNNING;
+		/* Switch context */
+		swtch(&prev_task->context, new_task->context);
+	}
+
+	/* Globally enable interrupts */
+	sti();
 }

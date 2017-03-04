@@ -20,7 +20,7 @@ static void t2()
 		acquire(&lock);
 		if (count % 2 != 0)
 			sleep(t2, &lock);
-		printk("Hello World Iteration %d\n", count++);
+		printk("B. Hello World Iteration %d\n", count++);
 		wakeup(t1);
 		release(&lock);
 	}
@@ -34,7 +34,7 @@ static void t1()
 		acquire(&lock);
 		if (count % 2 == 0)
 			sleep(t1, &lock);
-		printk("Hello World Iteration %d\n", count++);
+		printk("A. Hello World Iteration %d\n", count++);
 		wakeup(t2);
 		release(&lock);
 	}
@@ -42,9 +42,9 @@ static void t1()
 
 static void print_banner()
 {
-	printk("\n###########################\n");
-	printk("Welcome to Tiny OS v%s\n", VERSION);
-	printk("###########################\n\n");
+	printk("\n#########################\n");
+	printk(" Welcome to Tiny OS v%s\n", VERSION);
+	printk("#########################\n\n");
 }
 
 extern unsigned end;
@@ -59,9 +59,10 @@ int kmain(void)
 	init_paging();
 	mem_init(&end, 1U << 20);
 	create_task(t1);
-	tiny_scheduler();
+	init_scheduler();
 	printk("HALT! Unreachable code\n");
-	while (1);
+	for (;;)
+		;
 }
 
 __attribute__((aligned(PGSIZE))) page_directory_t entrypgdir = {

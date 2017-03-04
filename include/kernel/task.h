@@ -36,11 +36,16 @@ struct cpu {
 	struct context *context;
 };
 
-void tiny_scheduler(void);
+#define STACK_SIZE 4096
+
+void trace_tasks();
+void init_scheduler();
+void tiny_schedule(void);
 int create_task(void (*fn_ptr)(void));
 void swtch(struct context **old, struct context *new);
 void yield();
 void sched();
+void load_context(struct context *new);
 void task_sleep(void *resource);
 void task_wakeup(void *resource);
 

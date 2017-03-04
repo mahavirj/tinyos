@@ -27,6 +27,19 @@ swtch:
   pop esi
   pop ebx
   pop ebp
-  sti
 swtch_end:
+  ret
+
+[GLOBAL load_context]
+load_context:
+  mov eax, [esp + 4] ;4(%esp), %eax
+
+  ; Switch stacks
+  mov esp, eax
+
+  ; Load new callee-save registers
+  pop edi
+  pop esi
+  pop ebx
+  pop ebp
   ret
