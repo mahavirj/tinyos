@@ -27,7 +27,7 @@ struct task {
 	void *wait_resource;	 // Opaque reference to waiting resource
 	registers_t *irqf;       // Registers context saved in irq
 	struct context *context; // Callee saved register context
-	pde_t *pd;    		 // Page directory.
+	pd_t *pd;    		 // Page directory.
 	list_head_t next;        // The next task in a linked list.
 };
 

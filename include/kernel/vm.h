@@ -1,5 +1,5 @@
-#ifndef PAGING_H
-#define PAGING_H
+#ifndef __VM_H__
+#define __VM_H__
 
 #include <isr.h>
 
@@ -15,25 +15,46 @@
 #define PTE_W 		0x002
 #define PTE_PS 		0x080
 
-typedef uint32_t pte_t;
+#define PDINDEX(x) \
+	(((uintptr_t) (x) >> 22) & (0x3ff))
 
-typedef struct {
-	pte_t *ptes[1024];
-} pde_t;
+#define PTINDEX(x) \
+	(((uintptr_t) (x) >> 12) & (0x3ff))
 
-typedef struct {
-	/* Array of pointers to page directories */
-	pde_t *pdes[1024];
-} pd_t;
-
-extern pd_t *current_pd;
-extern pd_t kernel_pd;
+#define PADDR(x) \
+	((uintptr_t) (x) & ~(0xfff))
 
 #define P2V(phys) \
 	(void *) ((uintptr_t) (phys) + KERNBASE)
 
 #define V2P(virt) \
 	(void *) ((uintptr_t) (virt) - KERNBASE)
+
+typedef uint32_t pte_t;
+
+typedef struct {
+	/* Array of pointers to ptes */
+	pte_t *ptes[1024];
+} pde_t;
+
+typedef struct {
+	/* Array of pointers to pdes */
+	pde_t *pdes[1024];
+} pd_t;
+
+extern unsigned etext;
+
+struct kmap_t {
+	void *virt;
+	void *phys_start;
+	void *phys_end;
+	int perm;
+};
+
+static inline void switch_pgdir(void *pg_dir)
+{
+	asm volatile("mov %0, %%cr3":: "r"(pg_dir));
+}
 
 /**
   Sets up the environment, page directories etc and
@@ -52,9 +73,6 @@ void switch_pgdir(void *pg_dir);
  **/
 void page_fault(registers_t *regs);
 
-pd_t *clone_directory(pd_t *src);
+pd_t *setupvm(pd_t *current_pd);
 
-/* Virtual to physical conversion */
-void *virt_to_phys(void *addr);
-
-#endif /* PAGING_H */
+#endif /* __VM_H__ */

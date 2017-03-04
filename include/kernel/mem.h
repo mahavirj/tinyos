@@ -1,5 +1,5 @@
-#ifndef __KMALLOC_H__
-#define __KMALLOC_H__
+#ifndef __MEM_H__
+#define __MEM_H__
 
 #include <stdint.h>
 #include <stddef.h>
@@ -12,4 +12,4 @@ void kfree(void *addr);
 void kfree_page(void *addr);
 int mem_init(void *addr, size_t size);
 
-#endif /* __KMALLOC_H__ */
+#endif /* __MEM_H__ */

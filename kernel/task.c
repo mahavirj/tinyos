@@ -13,6 +13,8 @@ static list_head_t *task_list;
 static struct task *current_task, *init_task;
 /* PID of task, will be useful in fork */
 static int pid;
+/* Current task page directory */
+static pd_t *current_pd;
 
 extern void task_ret();
 
@@ -46,8 +48,8 @@ int create_task(void (*fn_ptr)(void))
 
 	/* Clone page directory, kernel code/heap is linked (not copied),
 	 * rest copied */
-	pd_t *new_dir = clone_directory(current_pd);
-	if (!new_dir) {
+	pd_t *new_pd = setupvm(current_pd);
+	if (!new_pd) {
 		printk("page dir clone failed\n");
 		return -1;
 	}
@@ -57,7 +59,7 @@ int create_task(void (*fn_ptr)(void))
          * handler.
          */
 	t->id = ++pid;
-	t->pd = V2P(new_dir);
+	t->pd = V2P(new_pd);
 	char *sp = (char *) ((uint32_t) t->kstack + STACK_SIZE);
 	sp -= sizeof(*t->irqf);
 	t->irqf = (registers_t *) sp;
@@ -174,6 +176,9 @@ void tiny_schedule()
 	if (found) {
 		/* Switch page directory to new task */
 		switch_pgdir(new_task->pd);
+
+		/* Set current page directory*/
+		current_pd = new_task->pd;
 
 		prev_task = current_task;
 		/* Set current task */

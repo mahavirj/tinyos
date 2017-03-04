@@ -50,12 +50,12 @@ static void print_banner()
 extern unsigned end;
 int kmain(void)
 {
-	mem_init(&end, 1U << 20);
+	k_video_init();
+	print_banner();
+	mem_init(&end, PHYS_RAM - (int) V2P(&end));
 	init_paging();
 	init_gdt();
 	init_idt();
-	k_video_init();
-	print_banner();
 	init_keyboard();
 	init_timer(100);
 	create_task(t1);

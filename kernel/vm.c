@@ -4,9 +4,8 @@
 #include <mem.h>
 #include <stdint.h>
 #include <string.h>
+#include <helper.h>
 #include <vm.h>
-
-pd_t *current_pd;
 
 void page_fault(registers_t *regs)
 {
@@ -32,39 +31,26 @@ void page_fault(registers_t *regs)
 		printk("user-mode\n");
 	if (reserved)
 		printk("reserved\n");
+	for (;;)
+		;
 } 
 
-void switch_pgdir(void *pg_dir)
-{
-	asm volatile("mov %0, %%cr3":: "r"(pg_dir));
-	current_pd = P2V(pg_dir);
-}
-
-pd_t kernel_pd __attribute__((aligned(4096)));
-static pde_t kernel_pde __attribute__((aligned(4096)));
-#if 0
-extern unsigned etext;
-
-struct kmap_t {
-	void *virt;
-	void *phys_start;
-	void *phys_end;
-	int perm;
-};
-
 static struct kmap_t kmap[] = {
+	/* BIOS and other memory mapped device addres space */
 	{
 		.virt = (void *) KERNBASE,
 		.phys_start = 0,
-		.phys_end = V2P(0x100000),
+		.phys_end = (void *) 0x100000,
 		.perm = PTE_W,
 	},
+	/* Kernel TEXT/RODATA, read only mapping */
 	{
 		.virt = (void *) KERNLINK,
 		.phys_start = V2P(KERNLINK),
 		.phys_end = V2P(&etext),
 		.perm = 0,
 	},
+	/* Kernel DATA/HEAP, rw mapping */
 	{
 		.virt = &etext,
 		.phys_start = V2P(&etext),
@@ -73,21 +59,62 @@ static struct kmap_t kmap[] = {
 	},
 };
 
-pte_t *walkpgdir(pde_t *pd, const void *virt, bool alloc)
+static pte_t **pte_walk(pd_t *pd, const void *virt, bool alloc)
 {
-	pte_t *pte = pd->ptes[(virt >> 22) & 0x3ff];
-	if (!((uintptr_t) pte & PTE_P)) {
+	pde_t *pde = pd->pdes[PDINDEX(virt)];
+	if (!((uintptr_t) pde & PTE_P)) {
 		if (alloc) {
-			pte = (pte_t *) kcalloc_page(4096);
-			if (!pte)
+			pde = (pde_t *) kcalloc_page(sizeof(pde_t));
+			if (!pde)
 				return NULL;
+			pd->pdes[PDINDEX(virt)] =
+				(pde_t *)
+				((uintptr_t) V2P(pde) | PTE_P | PTE_W);
 		} else {
 			return NULL;
 		}
+	} else {
+		pde = P2V(PADDR(pde));
 	}
-	uint32_t *page = (uint32_t *) &pte->page[(virt >> 12) & 0x3ff];
+	return &pde->ptes[PTINDEX(virt)];
 }
-#endif
+
+static int map_pages(pd_t *pd, const void *virt, void *phys,
+			int size, int perm)
+{
+	int i;
+	pte_t **pte;
+
+	/* Align addresses to nearest page boundary */
+	char *v = (char *) virt;
+	char *p = (char *) PADDR(phys);
+	size += (PGSIZE - 1);
+	size &= ~(PGSIZE - 1);
+
+	for (i = 0; i < size; i += PGSIZE, p += PGSIZE, v += PGSIZE) {
+		pte = pte_walk(pd, v, true);
+		if (*pte) {
+			printk("Err...PTE already mapped\n");
+			return -1;
+		}
+		*pte = (pte_t *) ((uintptr_t) p | PTE_P | perm);
+	}
+	return 0;
+}
+
+static void init_kernel_mappings(pd_t *pd)
+{
+	if (!pd)
+		return;
+
+	int i;
+	for (i = 0; i < ARR_SIZE(kmap); i++) {
+		size_t size = (uintptr_t) kmap[i].phys_end -
+				(uintptr_t) kmap[i].phys_start;
+		map_pages(pd, kmap[i].virt, kmap[i].phys_start,
+				size, kmap[i].perm);
+	}
+}
 
 void init_paging()
 {
@@ -97,53 +124,51 @@ void init_paging()
 		return;
 	}
 
-	uint32_t phys, i;
-	for (phys = 0, i = 0; phys < 0x400000; phys += 4096, i++)
-		kernel_pde.ptes[i] = (pte_t *) (phys | PTE_P | PTE_W);
-
-	kernel_pd.pdes[KERNBASE >> PDXSHIFT] = (pde_t *)
-			 ((uintptr_t) V2P(&kernel_pde) | PTE_P | PTE_W);
-
+	init_kernel_mappings(init_pd);
 	irq_install_handler(14, page_fault);
-	switch_pgdir(V2P(&kernel_pd));
+	switch_pgdir(V2P(init_pd));
 }
 
-pd_t *clone_directory(pd_t *src)
+pd_t *setupvm(pd_t *src)
 {
-	pd_t *kern_pd = &kernel_pd;
+	int i;
 	pd_t *new_pd = kcalloc_page(sizeof(pd_t));
 	if (!new_pd) {
 		printk("%s: allocation failure\n", __func__);
 		return NULL;
 	}
+	/* Kernel mode mappings, only linking no clone */
+	init_kernel_mappings(new_pd);
 
-	int i, j;
-	for (i = 0; i < 1024; i++) {
-		if (kern_pd->pdes[i] == src->pdes[i]) {
-			new_pd->pdes[i] = src->pdes[i];
-		} else {
-			pde_t *virt_pd = kcalloc_page(sizeof(pde_t));
-			if (virt_pd) {
-				printk("%s: allocation failure\n", __func__);
-				return NULL;
-			}
-			new_pd->pdes[i] = (pde_t *) ((uintptr_t) V2P(virt_pd) | PTE_P | PTE_W);
-			pde_t *src_pd = (pde_t *) ((uintptr_t) src->pdes[i] & ~(0xfff));
-			for (j = 0; j < 1024; j++) {
-				if (!src->pdes[i]->ptes[j])
-					continue;
-				uint32_t virt_pg = (uint32_t) kcalloc_page(0x1000);
-				if (!virt_pg) {
-					printk("%s: allocation failure\n", __func__);
+	if (!src)
+		return new_pd;
+
+	/* We will assume that user mode vma for process would be
+	 * well within first 4M boundary, just to simplify clone
+	 * process.
+	 */
+	pde_t *pde = src->pdes[0];
+	if ((uintptr_t) pde & PTE_P) {
+		/* This will allocate PTE table */
+		pte_walk(new_pd, (void *) 0, 1);
+		pde = P2V(PADDR(pde));
+		for (i = 0; i < 1024; i++) {
+			pte_t *pte = pde->ptes[i];
+			pte_t **d = pte_walk(new_pd,
+				(void *) (i << PTXSHIFT), 0);
+			if ((uintptr_t) pte & PTE_P) {
+				/* We need to copy 4K page here */
+				char *page = kcalloc_page(PGSIZE);
+				if (!page) {
+					printk("malloc failed\n");
 					return NULL;
 				}
-				memcpy((void *) virt_pg,
-					 P2V((uintptr_t) src_pd->ptes[j] & ~(0xfff)), 0x1000);
-				virt_pd->ptes[j] = (pte_t *)((uintptr_t) V2P(virt_pg) |
-						((uintptr_t) src_pd->ptes[j] & 0xfff));
+				pte = P2V(PADDR(pte));
+				memcpy(page, pte, PGSIZE);
+				*d = (pte_t *) ((uintptr_t) V2P(page)
+						| PTE_P | PTE_W);
 			}
 		}
 	}
-
 	return new_pd;
 }

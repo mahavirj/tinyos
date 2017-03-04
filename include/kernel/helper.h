@@ -1,6 +1,9 @@
 #ifndef __HELPER_H__
 #define __HELPER_H__
 
+#define ARR_SIZE(x) \
+	(int) ((sizeof(x)) / (sizeof(*(x))))
+
 /* Enable interrupts on local processor */
 static inline void sti()
 {
