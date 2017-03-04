@@ -128,10 +128,9 @@ void tiny_scheduler()
 		return;
 
 	for (;;) {
-		list_head_t *node;
-		list_for_each(node, task_list) {
-			/* Get task struct */
-			struct task *t = list_entry(node, struct task, next);
+		struct task *t;
+		list_for_each_entry(t, task_list, next) {
+			/* Validate task struct */
 			if (!t || t->state != TASK_READY)
 				continue;
 			/* Switch page directory to new task */
