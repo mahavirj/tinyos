@@ -6,24 +6,26 @@ SECTIONS {
 
 	.text ALIGN (0x1000) : AT(0x100000)   /* align at 4 KB */
 	{
-		code = .;
 		*(.text*)             /* all text sections from all files */
 		*(.rodata*)          /* all read-only data sections from all files */
 	}
+	PROVIDE(__etext = .);
 
 	.data ALIGN (0x1000) :   /* align at 4 KB */
 	{
-		data = .;
+		__data_start = .;
 		*(.data*)             /* all data sections from all files */
+		__data_end = .;
 	}
+	PROVIDE(__edata = .);
 
 	.bss ALIGN (0x1000) :    /* align at 4 KB */
 	{
-		bss = .;
-		*(COMMON)            /* all COMMON sections from all files */
-		*(.bss*)              /* all bss sections from all files */
+		__bss_start = .;
+		*(COMMON)           /* all COMMON sections from all files */
+		*(.bss*)             /* all bss sections from all files */
+		__bss_end = .;
 	}
 
 	end = .;
-
 }

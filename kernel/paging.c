@@ -48,10 +48,10 @@ void init_paging()
 	 * virtual with size 4M */
 	uint32_t phys, i;
 	for (phys = 0, i = 0; phys < 0x400000; phys += 4096, i++)
-		kernel_pt.pages[i] = phys | PTE_P;
+		kernel_pt.pages[i] = phys | PTE_P | PTE_W;
 
 	kernel_pd.tables[KERNBASE >> PDXSHIFT] = (page_table_t *)
-			 ((uintptr_t) virt_to_phys(&kernel_pt) | 0x1);
+			 ((uintptr_t) virt_to_phys(&kernel_pt) | PTE_P | PTE_W);
 
 	irq_install_handler(14, page_fault);
 	switch_pgdir(virt_to_phys(&kernel_pd));
@@ -76,7 +76,7 @@ page_directory_t *clone_directory(page_directory_t *src)
 				printk("%s: allocation failure\n", __func__);
 				return NULL;
 			}
-			new_pd->tables[i] = (page_table_t *) ((uintptr_t) virt_to_phys(virt_pt) | PTE_P);
+			new_pd->tables[i] = (page_table_t *) ((uintptr_t) virt_to_phys(virt_pt) | PTE_P | PTE_W);
 			page_table_t *src_pt = (page_table_t *) ((uintptr_t) src->tables[i] & ~(0xfff));
 			for (j = 0; j < 1024; j++) {
 				if (!src->tables[i]->pages[j])
