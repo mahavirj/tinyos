@@ -9,6 +9,8 @@
 swtch:
   mov eax, [esp + 4] ;4(%esp), %eax
   mov edx, [esp + 8] ;8(%esp), %edx
+  cmp [eax], edx
+  je swtch_end
 
   ; Save old callee-save registers
   push ebp
@@ -26,4 +28,5 @@ swtch:
   pop ebx
   pop ebp
   sti
+swtch_end:
   ret
