@@ -50,14 +50,14 @@ static void print_banner()
 extern unsigned end;
 int kmain(void)
 {
+	init_paging();
+	mem_init(&end, 1U << 20);
 	init_gdt();
 	init_idt();
 	k_video_init();
 	print_banner();
-	init_timer(100);
 	init_keyboard();
-	init_paging();
-	mem_init(&end, 1U << 20);
+	init_timer(100);
 	create_task(t1);
 	init_scheduler();
 	printk("HALT! Unreachable code\n");
