@@ -99,60 +99,6 @@ void k_write_char(char c)
 	move_cursor(_x, _y);
 }
 
-void k_write(const char *buf)
-{
-	while (*buf)
-		k_write_char(*buf++);
-}
-
-void k_write_dec(const int num)
-{
-	int quot, i;
-	char rem;
-	char str[32];
-
-	quot = num;
-	i = 0;
-	do {
-		rem = (quot % 10) + '0';
-		quot /= 10;
-		str[i++] = rem;
-	} while (quot);
-
-	int start, end;
-	char temp;
-	for (end = i - 1, start = 0; start < end; end--, start++) {
-		temp = str[start];
-		str[start] = str[end];
-		str[end] = temp;
-	}
-
-	str[i] = '\0';
-	k_write(str);
-}
-
-void k_write_hex(const int num)
-{
-	int index = 32;
-	int val;
-
-	do {
-		index -= 4;
-		val = (num >> index) & 0xf;
-	} while (!val && index);
-
-	k_write("0x");
-	do {
-		if (val > 9)
-			val = 'A' + (val - 10);
-		else
-			val += '0';
-		k_write_char(val);
-		index -= 4;
-		val = (num >> index) & 0xf;
-	} while (index >= 0);
-}
-
 void k_video_init()
 {
 	fb = (uint16_t *) (KERNBASE + 0xB8000);
