@@ -26,7 +26,4 @@ SECTIONS {
 
 	end = .;
 
-	/DISCARD/ : {
-		*(.eh_frame .note.GNU-stack)
-	}
 }
