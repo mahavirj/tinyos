@@ -40,18 +40,25 @@ static void t1()
 	}
 }
 
+static void print_banner()
+{
+	printk("\n###########################\n");
+	printk("Welcome to Tiny OS v%s\n", VERSION);
+	printk("###########################\n\n");
+}
+
 extern unsigned end;
 int kmain(void)
 {
 	init_gdt();
 	init_idt();
 	k_video_init();
+	print_banner();
 	init_timer(100);
 	init_keyboard();
 	init_paging();
 	mem_init(&end, 1U << 20);
 	create_task(t1);
-
 	tiny_scheduler();
 	printk("HALT! Unreachable code\n");
 	while (1);

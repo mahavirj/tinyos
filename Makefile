@@ -4,6 +4,9 @@ CC := gcc
 AS := nasm
 OBJDUMP:= objdump
 
+# Tiny OS version
+VERSION := 0.1
+
 # Verbose build pass verbose=1
 ifeq ($(verbose),1)
 V :=
@@ -28,7 +31,7 @@ asm_srcs := $(foreach dir, $(boot_src_dir), $(wildcard $(dir)/*.s))
 c_objs := $(c_srcs:%.c=$(objdir)/%.o)
 asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
 
-CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -MMD
+CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -MMD -DVERSION=\"$(VERSION)\"
 CFLAGS += -Iinclude/kernel \
 	-Iinclude/drivers \
 
