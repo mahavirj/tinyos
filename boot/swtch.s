@@ -25,4 +25,5 @@ swtch:
   pop esi
   pop ebx
   pop ebp
+  sti
   ret

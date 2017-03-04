@@ -7,11 +7,11 @@
 #include <paging.h>
 
 /* Task list */
-list_head_t *task_list;
+static list_head_t *task_list;
 /* Current task running, should be in per CPU data */
-struct task *current_task;
+static struct task *current_task;
 /* Per CPU scheduler context */
-struct cpu *cpu;
+static struct cpu *cpu;
 /* PID of task, will be useful in fork */
 static int pid;
 
@@ -84,6 +84,42 @@ int create_task(void (*fn_ptr)(void))
 	return 0;
 }
 
+void task_sleep(void *resource)
+{
+	cli();
+	current_task->wait_resource = resource;
+	current_task->state = TASK_SLEEPING;
+	sti();
+}
+
+void task_wakeup(void *resource)
+{
+	cli();
+	list_head_t *node;
+	list_for_each(node, task_list) {
+		/* Get task struct */
+		struct task *t = list_entry(node, struct task, next);
+		if (!t || t->wait_resource != resource)
+			continue;
+		t->wait_resource = NULL;
+		t->state = TASK_READY;
+	}
+	sti();
+}
+
+void sched()
+{
+	swtch(&current_task->context, cpu->context);
+}
+
+void yield()
+{
+	if (current_task && current_task->state == TASK_RUNNING) {
+		current_task->state = TASK_READY;
+		swtch(&current_task->context, cpu->context);
+	}
+}
+
 void tiny_scheduler()
 {
 	/* Scheduler context */
@@ -98,14 +134,16 @@ void tiny_scheduler()
 			struct task *t = list_entry(node, struct task, next);
 			if (!t || t->state != TASK_READY)
 				continue;
-			/* Set task state to running */
-			t->state = TASK_RUNNING;
-			/* Set current task */
-			current_task = t;
 			/* Switch page directory to new task */
 			switch_pgdir(t->pd);
+			/* Set current task */
+			current_task = t;
+			/* Set task state to running */
+			t->state = TASK_RUNNING;
 			/* Switch context */
 			swtch(&cpu->context, t->context);
+			cli();
+			current_task = NULL;
 			/* Switch page directory to scheduler code */
 			switch_pgdir(virt_to_phys(&kernel_pd));
 		}

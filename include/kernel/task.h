@@ -24,6 +24,7 @@ struct task {
 	int id;                  // Process ID.
 	int state;		 // State of task, running, blocked etc.
 	uint8_t *kstack;	 // Kernel stack
+	void *wait_resource;	 // Opaque reference to waiting resource
 	registers_t *irqf;       // Registers context saved in irq
 	struct context *context; // Callee saved register context
 	page_directory_t *pd;    // Page directory.
@@ -35,11 +36,12 @@ struct cpu {
 	struct context *context;
 };
 
-extern struct cpu *cpu;
-extern struct task *current_task;
 void tiny_scheduler(void);
 int create_task(void (*fn_ptr)(void));
 void swtch(struct context **old, struct context *new);
-
+void yield();
+void sched();
+void task_sleep(void *resource);
+void task_wakeup(void *resource);
 
 #endif /* __TASK_H__ */

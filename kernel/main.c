@@ -7,25 +7,36 @@
 #include <kmalloc.h>
 #include <paging.h>
 #include <task.h>
+#include <sync.h>
+
+static int count = 1;
+static struct spinlock lock;
+static void t1();
+static void t2();
 
 static void t2()
 {
-	int val = 1000;
-
 	while (1) {
-		printk("Hello from task2 %d\n", val++);
-		wait_ms(5000);
+		acquire(&lock);
+		if (count % 2 != 0)
+			sleep(t2, &lock);
+		printk("Hello World Iteration %d\n", count++);
+		wakeup(t1);
+		release(&lock);
 	}
 }
 
 static void t1()
 {
-	int val = 500;
 	create_task(t2);
 
 	while (1) {
-		printk("Hello from task1 %d\n", val++);
-		wait_ms(1000);
+		acquire(&lock);
+		if (count % 2 == 0)
+			sleep(t1, &lock);
+		printk("Hello World Iteration %d\n", count++);
+		wakeup(t2);
+		release(&lock);
 	}
 }
 

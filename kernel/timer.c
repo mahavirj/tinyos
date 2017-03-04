@@ -11,11 +11,9 @@ static void timer_handler(registers_t *r)
 	(void) r;
 	/* Increment our 'tick count' */
 	timer_ticks++;
-	/* Invoke scheduler */
-	if (current_task) {
-		current_task->state = TASK_READY;
-		swtch(&current_task->context, cpu->context);
-	}
+
+	/* `yield` to invoke scheduler */
+	yield();
 }
 
 static void timer_phase(int hz)
