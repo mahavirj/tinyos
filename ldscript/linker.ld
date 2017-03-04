@@ -9,23 +9,21 @@ SECTIONS {
 		*(.text*)             /* all text sections from all files */
 		*(.rodata*)          /* all read-only data sections from all files */
 	}
-	PROVIDE(__etext = .);
+	/* Align on page boundary, read only page mapping */
+	. = ALIGN(0x1000);
+	etext = .;
 
 	.data ALIGN (0x1000) :   /* align at 4 KB */
 	{
-		__data_start = .;
 		*(.data*)             /* all data sections from all files */
-		__data_end = .;
 	}
-	PROVIDE(__edata = .);
 
 	.bss ALIGN (0x1000) :    /* align at 4 KB */
 	{
-		__bss_start = .;
 		*(COMMON)           /* all COMMON sections from all files */
 		*(.bss*)             /* all bss sections from all files */
-		__bss_end = .;
 	}
 
+	. = ALIGN(4);
 	end = .;
 }
