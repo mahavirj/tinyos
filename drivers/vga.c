@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <helper.h>
-#include <paging.h>
+#include <vm.h>
 
 extern void memsetw(void *src, uint16_t value, size_t size);
 

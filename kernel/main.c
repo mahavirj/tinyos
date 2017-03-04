@@ -4,8 +4,8 @@
 #include <helper.h>
 #include <timer.h>
 #include <keyboard.h>
-#include <kmalloc.h>
-#include <paging.h>
+#include <mem.h>
+#include <vm.h>
 #include <task.h>
 #include <sync.h>
 
@@ -50,8 +50,8 @@ static void print_banner()
 extern unsigned end;
 int kmain(void)
 {
-	init_paging();
 	mem_init(&end, 1U << 20);
+	init_paging();
 	init_gdt();
 	init_idt();
 	k_video_init();
@@ -65,10 +65,10 @@ int kmain(void)
 		;
 }
 
-__attribute__((aligned(PGSIZE))) page_directory_t entrypgdir = {
+__attribute__((aligned(PGSIZE))) pd_t entrypgdir = {
 	/* Identiy mapping for first 4M memory */
-	.tables[0] = (page_table_t *) ((0) | PTE_P | PTE_W | PTE_PS),
+	.pdes[0] = (pde_t *) ((0) | PTE_P | PTE_W | PTE_PS),
 	/* Higher address mapping for 4M memory */
-	.tables[KERNBASE >> PDXSHIFT] =
-		 (page_table_t *) ((0) | PTE_P | PTE_W | PTE_PS),
+	.pdes[KERNBASE >> PDXSHIFT] =
+		 (pde_t *) ((0) | PTE_P | PTE_W | PTE_PS),
 };

@@ -1,7 +1,7 @@
 #ifndef __TASK_H__
 #define __TASK_H__
 
-#include <paging.h>
+#include <vm.h>
 #include <list.h>
 
 enum task_state {
@@ -27,7 +27,7 @@ struct task {
 	void *wait_resource;	 // Opaque reference to waiting resource
 	registers_t *irqf;       // Registers context saved in irq
 	struct context *context; // Callee saved register context
-	page_directory_t *pd;    // Page directory.
+	pde_t *pd;    		 // Page directory.
 	list_head_t next;        // The next task in a linked list.
 };
 

@@ -1,11 +1,12 @@
 
+#include <stdbool.h>
 #include <vga.h>
-#include <kmalloc.h>
+#include <mem.h>
 #include <stdint.h>
 #include <string.h>
-#include <paging.h>
+#include <vm.h>
 
-page_directory_t *current_pd;
+pd_t *current_pd;
 
 void page_fault(registers_t *regs)
 {
@@ -36,31 +37,81 @@ void page_fault(registers_t *regs)
 void switch_pgdir(void *pg_dir)
 {
 	asm volatile("mov %0, %%cr3":: "r"(pg_dir));
-	current_pd = phys_to_virt(pg_dir);
+	current_pd = P2V(pg_dir);
 }
 
-page_directory_t kernel_pd __attribute__((aligned(4096)));
-static page_table_t kernel_pt __attribute__((aligned(4096)));
+pd_t kernel_pd __attribute__((aligned(4096)));
+static pde_t kernel_pde __attribute__((aligned(4096)));
+#if 0
+extern unsigned etext;
+
+struct kmap_t {
+	void *virt;
+	void *phys_start;
+	void *phys_end;
+	int perm;
+};
+
+static struct kmap_t kmap[] = {
+	{
+		.virt = (void *) KERNBASE,
+		.phys_start = 0,
+		.phys_end = V2P(0x100000),
+		.perm = PTE_W,
+	},
+	{
+		.virt = (void *) KERNLINK,
+		.phys_start = V2P(KERNLINK),
+		.phys_end = V2P(&etext),
+		.perm = 0,
+	},
+	{
+		.virt = &etext,
+		.phys_start = V2P(&etext),
+		.phys_end = (void *) PHYS_RAM,
+		.perm = PTE_W,
+	},
+};
+
+pte_t *walkpgdir(pde_t *pd, const void *virt, bool alloc)
+{
+	pte_t *pte = pd->ptes[(virt >> 22) & 0x3ff];
+	if (!((uintptr_t) pte & PTE_P)) {
+		if (alloc) {
+			pte = (pte_t *) kcalloc_page(4096);
+			if (!pte)
+				return NULL;
+		} else {
+			return NULL;
+		}
+	}
+	uint32_t *page = (uint32_t *) &pte->page[(virt >> 12) & 0x3ff];
+}
+#endif
 
 void init_paging()
 {
-	/* Map kernel code, data and heap regions from 0 physical to 3G
-	 * virtual with size 4M */
+	pd_t *init_pd = (pd_t *) kcalloc_page(sizeof(pd_t));
+	if (!init_pd) {
+		printk("%s: allocation failure\n", __func__);
+		return;
+	}
+
 	uint32_t phys, i;
 	for (phys = 0, i = 0; phys < 0x400000; phys += 4096, i++)
-		kernel_pt.pages[i] = phys | PTE_P | PTE_W;
+		kernel_pde.ptes[i] = (pte_t *) (phys | PTE_P | PTE_W);
 
-	kernel_pd.tables[KERNBASE >> PDXSHIFT] = (page_table_t *)
-			 ((uintptr_t) virt_to_phys(&kernel_pt) | PTE_P | PTE_W);
+	kernel_pd.pdes[KERNBASE >> PDXSHIFT] = (pde_t *)
+			 ((uintptr_t) V2P(&kernel_pde) | PTE_P | PTE_W);
 
 	irq_install_handler(14, page_fault);
-	switch_pgdir(virt_to_phys(&kernel_pd));
+	switch_pgdir(V2P(&kernel_pd));
 }
 
-page_directory_t *clone_directory(page_directory_t *src)
+pd_t *clone_directory(pd_t *src)
 {
-	page_directory_t *kern_pd = &kernel_pd;
-	page_directory_t *new_pd = kcalloc_page(sizeof(page_directory_t));
+	pd_t *kern_pd = &kernel_pd;
+	pd_t *new_pd = kcalloc_page(sizeof(pd_t));
 	if (!new_pd) {
 		printk("%s: allocation failure\n", __func__);
 		return NULL;
@@ -68,29 +119,28 @@ page_directory_t *clone_directory(page_directory_t *src)
 
 	int i, j;
 	for (i = 0; i < 1024; i++) {
-		if (kern_pd->tables[i] == src->tables[i]) {
-			new_pd->tables[i] = src->tables[i];
+		if (kern_pd->pdes[i] == src->pdes[i]) {
+			new_pd->pdes[i] = src->pdes[i];
 		} else {
-			page_table_t *virt_pt = kcalloc_page(sizeof(page_table_t));
-			if (virt_pt) {
+			pde_t *virt_pd = kcalloc_page(sizeof(pde_t));
+			if (virt_pd) {
 				printk("%s: allocation failure\n", __func__);
 				return NULL;
 			}
-			new_pd->tables[i] = (page_table_t *) ((uintptr_t) virt_to_phys(virt_pt) | PTE_P | PTE_W);
-			page_table_t *src_pt = (page_table_t *) ((uintptr_t) src->tables[i] & ~(0xfff));
+			new_pd->pdes[i] = (pde_t *) ((uintptr_t) V2P(virt_pd) | PTE_P | PTE_W);
+			pde_t *src_pd = (pde_t *) ((uintptr_t) src->pdes[i] & ~(0xfff));
 			for (j = 0; j < 1024; j++) {
-				if (!src->tables[i]->pages[j])
+				if (!src->pdes[i]->ptes[j])
 					continue;
 				uint32_t virt_pg = (uint32_t) kcalloc_page(0x1000);
 				if (!virt_pg) {
 					printk("%s: allocation failure\n", __func__);
 					return NULL;
 				}
-				printk("MJ %x\n", virt_pg);
 				memcpy((void *) virt_pg,
-					 phys_to_virt((void *) (src_pt->pages[j] & ~(0xfff))), 0x1000);
-				virt_pt->pages[j] = (uintptr_t) virt_to_phys((void *) virt_pg) |
-						(src_pt->pages[j] & 0xfff);
+					 P2V((uintptr_t) src_pd->ptes[j] & ~(0xfff)), 0x1000);
+				virt_pd->ptes[j] = (pte_t *)((uintptr_t) V2P(virt_pg) |
+						((uintptr_t) src_pd->ptes[j] & 0xfff));
 			}
 		}
 	}

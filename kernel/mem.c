@@ -5,7 +5,7 @@
  * Malloc/Free complexity of O(n) order for list traversal
  */
 
-#include <kmalloc.h>
+#include <mem.h>
 #include <string.h>
 
 /* #define MEM_DEBUG */

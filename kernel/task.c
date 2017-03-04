@@ -1,11 +1,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <task.h>
-#include <kmalloc.h>
+#include <mem.h>
 #include <vga.h>
 #include <wait_queue.h>
 #include <helper.h>
-#include <paging.h>
+#include <vm.h>
 
 /* Task list */
 static list_head_t *task_list;
@@ -46,7 +46,7 @@ int create_task(void (*fn_ptr)(void))
 
 	/* Clone page directory, kernel code/heap is linked (not copied),
 	 * rest copied */
-	page_directory_t *new_dir = clone_directory(current_pd);
+	pd_t *new_dir = clone_directory(current_pd);
 	if (!new_dir) {
 		printk("page dir clone failed\n");
 		return -1;
@@ -57,7 +57,7 @@ int create_task(void (*fn_ptr)(void))
          * handler.
          */
 	t->id = ++pid;
-	t->pd = virt_to_phys(new_dir);
+	t->pd = V2P(new_dir);
 	char *sp = (char *) ((uint32_t) t->kstack + STACK_SIZE);
 	sp -= sizeof(*t->irqf);
 	t->irqf = (registers_t *) sp;
