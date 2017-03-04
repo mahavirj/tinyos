@@ -61,6 +61,12 @@ $(os_image): $(kernel)
 run: all
 	bochs -qf tools/bochsrc.txt -rc tools/bochsrc.debug
 
+qemu: all
+	qemu-system-i386 -kernel bin/kernel.elf -m 32
+
+qemu_gdb: all
+	qemu-system-i386 -kernel bin/kernel.elf -m 32 -s -S
+
 $(objdir)/%.o: %.c
 	@echo "  CC    $<"
 	$(V)$(CC) -c $(CFLAGS) $< -o $@
