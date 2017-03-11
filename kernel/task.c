@@ -3,9 +3,9 @@
 #include <task.h>
 #include <mem.h>
 #include <vga.h>
-#include <wait_queue.h>
 #include <helper.h>
 #include <vm.h>
+#include <gdt.h>
 
 /* Task list */
 static list_head_t *task_list;
@@ -59,7 +59,7 @@ int create_task(void (*fn_ptr)(void))
          * handler.
          */
 	t->id = ++pid;
-	t->pd = V2P(new_pd);
+	t->pd = new_pd;
 	char *sp = (char *) ((uint32_t) t->kstack + STACK_SIZE);
 	sp -= sizeof(*t->irqf);
 	t->irqf = (registers_t *) sp;
@@ -148,7 +148,10 @@ void init_scheduler()
 		return;
 	}
 	current_task = init_task;
-	switch_pgdir(current_task->pd);
+	set_kernel_stack((uint32_t) current_task->kstack);
+	switch_pgdir(V2P(current_task->pd));
+	current_pd = current_task->pd;
+	current_task->state = TASK_RUNNING;
 	load_context(current_task->context);
 }
 
