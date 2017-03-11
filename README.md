@@ -3,7 +3,22 @@
 X86 based Operating system built from scratch for learning purpose
 
 * KISS (Keep It Simple Stupid) Philosophy
-* Bootloader is imported from GRUB to avoid going down legacy X86 stuff
+* Bootloader is assumed to be GRUB, kernel has GRUB specific multiboot header
+
+## Features
+
+* Higher half kernel
+Kernel set itself up to run from higher half, 3G+1M region
+* Multitasking
+ * Basic scheduler with multitasking support, round robin, with same priority
+ * Timer interrupt forces context switch
+* User mode, Kernel mode distinction
+ * GDT have been setup with appropriate DPLs
+ * Kernel code runs in ring 0, and user code in ring 3
+ * System call happens through `int 64` which has required GATE descriptors for
+privilege escalation
+* Fork support
+ * Clone parent process, no COW support
 
 # Overview
 
@@ -22,8 +37,12 @@ To run under QEMU with debugging support (GDB)
   (Attach GDB, required commands already provided in .gdbinit file in top level dir)
 
 
+# Additional Notes
+[Technical notes](docs/Notes.md)
+
 # References
 
+* [Intel Reference Manual v.3A](http://download.intel.com/design/processor/manuals/253668.pdf)
 * [Xv6, unix clone OS](https://pdos.csail.mit.edu/6.828/2016/xv6.html)
  * [Code on github](https://github.com/mit-pdos/xv6-public)
 * [Bran's kernel development tutorial] (http://www.osdever.net/bkerndev/Docs/gettingstarted.htm)
