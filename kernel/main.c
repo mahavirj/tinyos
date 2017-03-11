@@ -50,7 +50,7 @@ static void print_banner()
 extern unsigned end;
 int kmain(void)
 {
-	k_video_init();
+	init_vga();
 	print_banner();
 	mem_init(&end, PHYS_RAM - (int) V2P(&end));
 	init_paging();

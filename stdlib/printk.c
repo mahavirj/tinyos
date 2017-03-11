@@ -4,7 +4,7 @@
 static void write_str(const char *buf)
 {
 	while (*buf)
-		k_write_char(*buf++);
+		vga_write_char(*buf++);
 }
 
 static void to_decimal(const int num)
@@ -49,7 +49,7 @@ static void to_hex(const int num)
 			val = 'A' + (val - 10);
 		else
 			val += '0';
-		k_write_char(val);
+		vga_write_char(val);
 		index -= 4;
 		val = (num >> index) & 0xf;
 	} while (index >= 0);
@@ -65,7 +65,7 @@ void printk(const char *fmt, ...)
 	va_start(ap, fmt);
 	for (p = fmt; *p; p++) {
 		if (*p != '%') {
-			k_write_char(*p);
+			vga_write_char(*p);
 			continue;
 		}
 		switch (*++p) {
@@ -85,7 +85,7 @@ void printk(const char *fmt, ...)
 			/* need a cast here since va_arg only
 			   takes fully promoted types */
 			c = (char) va_arg(ap, int);
-			k_write_char(c);
+			vga_write_char(c);
 			break;
 		}
 	}

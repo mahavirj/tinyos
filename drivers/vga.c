@@ -65,7 +65,7 @@ static void cls()
 	move_cursor(_x, _y);
 }
 
-void k_write_char(char c)
+void vga_write_char(char c)
 {
 	uint16_t *loc = fb + (_y * 80 + _x);
 	uint8_t attr = COLOR_ATTR;
@@ -99,7 +99,17 @@ void k_write_char(char c)
 	move_cursor(_x, _y);
 }
 
-void k_video_init()
+void vga_write_buf(char *buf, int len)
+{
+	if (!buf || !len)
+		return;
+
+	while (len--)
+		vga_write_char(*buf++);
+	return;
+}
+
+void init_vga()
 {
 	fb = (uint16_t *) (KERNBASE + 0xB8000);
 	cls();
