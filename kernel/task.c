@@ -148,6 +148,7 @@ void init_scheduler()
 		return;
 	}
 	current_task = init_task;
+	switch_pgdir(current_task->pd);
 	load_context(current_task->context);
 }
 
