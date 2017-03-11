@@ -76,16 +76,19 @@ void irq_uninstall_handler(int irq)
 static void syscall_handler(registers_t *r)
 {
 	/* write system call */
-	if (r->eax == 1) {
+	if (r->eax == 0) {
 		/* buffer to print on VGA */
 		char *buf = (char *) (*(int *)(r->useresp + 4));
 		/* length of buffer */
 		int len = *(int *) (r->useresp + 8);
 		vga_write_buf(buf, len);
 	/* fork system call */
-	} else if (r->eax == 2) {
+	} else if (r->eax == 1) {
 		/* FIXME: do we need to set current task `irqf` to `r` here? */
-		r->eax = (uint32_t) create_task(0);
+		r->eax = sys_fork();
+	} else if (r->eax == 2) {
+		char *fname = (char *) (*(int *)(r->useresp + 4));
+		r->eax = sys_exec(fname);
 	}
 }
 

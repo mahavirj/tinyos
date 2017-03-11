@@ -6,6 +6,7 @@
 #include <helper.h>
 #include <vm.h>
 #include <gdt.h>
+#include <cpio_parser.h>
 
 /* Task list */
 static list_head_t *task_list;
@@ -18,40 +19,27 @@ static pd_t *current_pd;
 
 extern void task_ret();
 
-int create_task(void (*fn_ptr)(void))
+struct task *alloctask()
 {
-	struct task *t;
-
 	/* Allocate task control block */
-	t = (struct task *) kcalloc(sizeof(struct task));
+	struct task *t = (struct task *) kcalloc(sizeof(struct task));
 	if (!t) {
 		printk("malloc failed\n");
-		return -1;
+		return NULL;
 	}
 
 	/* Allocate task stack, fixed to 4K for now */
 	t->kstack = (uint8_t *) kcalloc_page(STACK_SIZE);
 	if (!t->kstack) {
 		printk("malloc failed\n");
-		return -1;
+		return NULL;
 	}
 
-	/* Initialize wait queue if not already */
-	if (!task_list) {
-		task_list = (list_head_t *) kmalloc(sizeof(list_head_t));
-		if (!task_list) {
-			printk("malloc failed\n");
-			return -1;
-		}
-		INIT_LIST_HEAD(task_list);
-	}
-
-	/* Clone page directory, kernel code/heap is linked (not copied),
-	 * rest copied */
-	pd_t *new_pd = setupvm(current_pd);
+	/* Create page tables, kernel code/heap is linked (not copied) */
+	pd_t *new_pd = setupkvm();
 	if (!new_pd) {
 		printk("page dir clone failed\n");
-		return -1;
+		return NULL;
 	}
 
 	/* Setup stack frame as if task had been interrupted by exception,
@@ -68,32 +56,115 @@ int create_task(void (*fn_ptr)(void))
 	t->context = (struct context *) sp;
 	memset(t->context, 0, sizeof(*t->context));
 	t->context->eip = (uint32_t) task_ret;
-
-	if (!init_task) {
-		/* Task will start in CPL = 3, i.e. user mode */
-		t->irqf->cs = (SEG_UCODE << 3) | DPL_USER;
-		t->irqf->ds = (SEG_UDATA << 3) | DPL_USER;
-		t->irqf->eflags = 0x200;
-		t->irqf->eip = (uint32_t) 0;
-		t->irqf->ss = (SEG_UDATA << 3) | DPL_USER;
-		t->irqf->useresp = (uint32_t) STACK_SIZE - 16;
-	} else {
-		/* Clone exception frame from parent task */
-		*t->irqf = *current_task->irqf;
-		t->irqf->eax = 0;
-	}
-
 	t->kstack += STACK_SIZE;
+
 	/* Initialize wait queue with first task */
 	list_add_tail(&t->next, task_list);
+
+	return t;
+}
+
+extern char _binary_ramfs_cpio_start[];
+
+int create_init_task()
+{
+	int ret;
+
+	/* Initialize task list for scheduling */
+	task_list = (list_head_t *) kmalloc(sizeof(list_head_t));
+	if (!task_list) {
+		printk("malloc failed\n");
+		return -1;
+	}
+	INIT_LIST_HEAD(task_list);
+
+	init_task = alloctask();
+	if (!init_task) {
+		printk("failed to create init task\n");
+		return -1;
+	}
+
+	/* Task will start in CPL = 3, i.e. user mode */
+	init_task->irqf->cs = (SEG_UCODE << 3) | DPL_USER;
+	init_task->irqf->ds = (SEG_UDATA << 3) | DPL_USER;
+	init_task->irqf->eflags = 0x200;
+	init_task->irqf->eip = (uint32_t) 0;
+	init_task->irqf->ss = (SEG_UDATA << 3) | DPL_USER;
+	init_task->irqf->useresp = (uint32_t) STACK_SIZE - 16;
+
+	unsigned long size;
+	void *init = cpio_get_file(_binary_ramfs_cpio_start,
+					INIT_TASK_NAME, &size);
+	if (!init) {
+		printk("no init task in initramfs\n");
+		return -1;
+	}
+
+	ret = overwriteuvm(init_task->pd, init, size);
+	if (ret) {
+		printk("failure in exec`ing init\n");
+		return -1;
+	}
+
+	init_task->state = TASK_READY;
+
+	return 0;
+}
+
+int sys_fork()
+{
+	int ret;
+
+	/* Allocate task control block */
+	struct task *t = alloctask();
+	if (!t) {
+		printk("alloc task failed\n");
+		return -1;
+	}
+
+	/* Clone page directory, kernel code/heap is linked (not copied),
+	 * rest copied from parent process, i.e. curent process.
+	 */
+	ret = setupuvm(t->pd, current_pd);
+	if (ret) {
+		printk("setupuvm failed\n");
+		return -1;
+	}
+
+	/* Clone exception frame from parent task */
+	*t->irqf = *current_task->irqf;
+	t->irqf->eax = 0;
+
+	/* Set parent task */
+	t->parent = current_task;
 
 	/* Set state for task */
 	t->state = TASK_READY;
 
-	if (!init_task)
-		init_task = t;
-
 	return pid;
+}
+
+int sys_exec(const char *fname)
+{
+	int ret;
+	unsigned long size;
+	void *fstart = cpio_get_file(_binary_ramfs_cpio_start,
+					fname, &size);
+	if (!fstart) {
+		printk("no %s in initramfs\n", fname);
+		return -1;
+	}
+
+	ret = overwriteuvm(current_task->pd, fstart, size);
+	if (ret) {
+		printk("failure in exec`ing process\n");
+		return -1;
+	}
+
+	current_task->irqf->eip = (uint32_t) 0;
+	current_task->irqf->useresp = (uint32_t) STACK_SIZE - 16;
+	switch_pgdir(V2P(current_task->pd));
+	return 0;
 }
 
 void task_sleep(void *resource)

@@ -27,12 +27,16 @@ kernel_src_dir := \
 
 boot_src_dir :=	boot
 
+app_src_dir := app
+
+app_obj_dir := $(objdir)/$(app_src_dir)
+
 c_srcs := $(foreach dir, $(kernel_src_dir), $(wildcard $(dir)/*.c))
 asm_srcs := $(foreach dir, $(boot_src_dir), $(wildcard $(dir)/*.s))
 c_objs := $(c_srcs:%.c=$(objdir)/%.o)
 asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
 
-CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -MMD -DVERSION=\"$(VERSION)\"
+CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -DVERSION=\"$(VERSION)\"
 CFLAGS += -Iinclude/kernel \
 	-Iinclude/drivers \
 
@@ -42,7 +46,7 @@ LDFLAGS = -nostdlib -Wl,--build-id=none
 ASFLAGS = -f elf
 
 define make-repo
-   for dir in $(kernel_src_dir) $(boot_src_dir); \
+   for dir in $(kernel_src_dir) $(boot_src_dir) $(app_src_dir); \
    do \
         mkdir -p $(objdir)/$$dir; \
    done
@@ -50,18 +54,29 @@ endef
 
 all: pre-build $(kernel) $(os_image)
 
-$(objdir)/userapp: app/userapp.c
+ramfs.obj: $(app_obj_dir)/init $(app_obj_dir)/shell
+	$(V)cd $(app_obj_dir) && find . | cpio -o -H newc > ../ramfs.cpio
+	$(V)cd $(objdir) && $(OBJCOPY) -I binary -O elf32-i386 -B i386 ramfs.cpio $@
+
+$(app_obj_dir)/init: $(app_src_dir)/init.c
 	@echo "  APP   $<"
-	$(V)$(AS) $(ASFLAGS) app/syscall.s -o app/syscall.o
-	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< app/syscall.o -o $@
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< $(objdir)/$(boot_src_dir)/syscall.o -o _tmp
+	$(V)$(OBJCOPY) -O binary _tmp $@
+	$(V)rm -f _tmp
+
+$(app_obj_dir)/shell: $(app_src_dir)/shell.c
+	@echo "  APP   $<"
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< $(objdir)/$(boot_src_dir)/syscall.o -o _tmp
+	$(V)$(OBJCOPY) -O binary _tmp $@
+	$(V)rm -f _tmp
 
 pre-build:
 	@mkdir -p $(objdir)
 	@$(call make-repo)
 
-$(kernel): ldscript/linker.ld $(asm_objs) $(c_objs) $(objdir)/userapp
+$(kernel): ldscript/linker.ld $(asm_objs) $(c_objs) ramfs.obj
 	@echo "  LD    $@"
-	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(LDSCRIPT) $(asm_objs) $(c_objs) $(objdir)/userapp -o $@
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(LDSCRIPT) $(asm_objs) $(c_objs) $(objdir)/ramfs.obj -o $@
 	$(V)$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(objdir)/kernel.sym
 
 $(os_image): $(kernel)
@@ -70,7 +85,7 @@ $(os_image): $(kernel)
                 -A os -input-charset utf8 -quiet -boot-info-table -o $@ iso
 
 run: all
-	bochs -qf tools/bochsrc.txt -rc tools/bochsrc.debug
+	bochs -qf tools/bochsrc.txt #-rc tools/bochsrc.debug
 
 qemu: all
 	qemu-system-i386 -cdrom bin/os.iso -m 32

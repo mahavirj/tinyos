@@ -2,6 +2,7 @@
 #define __VM_H__
 
 #include <isr.h>
+#include <stddef.h>
 
 #define PGSIZE 		4096
 #define PGSHIFT		12
@@ -74,6 +75,8 @@ void switch_pgdir(void *pg_dir);
  **/
 void page_fault(registers_t *regs);
 
-pd_t *setupvm(pd_t *current_pd);
+pd_t *setupkvm();
+int setupuvm(pd_t *new_pd, pd_t *current_pd);
+int overwriteuvm(pd_t *new_pd, void *app, size_t size);
 
 #endif /* __VM_H__ */

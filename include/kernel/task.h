@@ -21,14 +21,15 @@ struct context {
 
 /* Task control block */
 struct task {
-	int id;                  // Process ID.
+	int id;                  // Process ID
 	int state;		 // State of task, running, blocked etc.
 	uint8_t *kstack;	 // Kernel stack
 	void *wait_resource;	 // Opaque reference to waiting resource
 	registers_t *irqf;       // Registers context saved in irq
 	struct context *context; // Callee saved register context
-	pd_t *pd;    		 // Page directory.
-	list_head_t next;        // The next task in a linked list.
+	pd_t *pd;    		 // Page directory
+	struct task *parent;	 // Parent Task
+	list_head_t next;        // The next task in a linked list
 };
 
 /* Per CPU scheduler data */
@@ -37,11 +38,14 @@ struct cpu {
 };
 
 #define STACK_SIZE 4096
+#define INIT_TASK_NAME "init"
 
 void trace_tasks();
 void init_scheduler();
 void tiny_schedule(void);
-int create_task(void (*fn_ptr)(void));
+int create_init_task(void);
+int sys_fork(void);
+int sys_exec(const char *fname);
 void swtch(struct context **old, struct context *new);
 void yield();
 void sched();

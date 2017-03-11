@@ -104,9 +104,6 @@ static int map_pages(pd_t *pd, const void *virt, void *phys,
 
 static void init_kernel_mappings(pd_t *pd)
 {
-	if (!pd)
-		return;
-
 	int i;
 	for (i = 0; i < ARR_SIZE(kmap); i++) {
 		size_t size = (uintptr_t) kmap[i].phys_end -
@@ -116,23 +113,8 @@ static void init_kernel_mappings(pd_t *pd)
 	}
 }
 
-void init_paging()
+pd_t *setupkvm()
 {
-	pd_t *init_pd = (pd_t *) kcalloc_page(sizeof(pd_t));
-	if (!init_pd) {
-		printk("%s: allocation failure\n", __func__);
-		return;
-	}
-
-	init_kernel_mappings(init_pd);
-	irq_install_handler(14, page_fault);
-	switch_pgdir(V2P(init_pd));
-}
-
-extern unsigned _bin_userapp_end, _bin_userapp_start;
-pd_t *setupvm(pd_t *src)
-{
-	int i;
 	pd_t *new_pd = kcalloc_page(sizeof(pd_t));
 	if (!new_pd) {
 		printk("%s: allocation failure\n", __func__);
@@ -141,11 +123,12 @@ pd_t *setupvm(pd_t *src)
 	/* Kernel mode mappings, only linking no clone */
 	init_kernel_mappings(new_pd);
 
-	if (!src) {
-		map_pages(new_pd, (void *) 0, (void *) V2P(&_bin_userapp_start),
-			(unsigned) &_bin_userapp_end - (unsigned) &_bin_userapp_start, PTE_W | PTE_U);
-		return new_pd;
-	}
+	return new_pd;
+}
+
+int setupuvm(pd_t *new_pd, pd_t *src)
+{
+	int i;
 
 	/* We will assume that user mode vma for process would be
 	 * well within first 4M boundary, just to simplify clone
@@ -165,7 +148,7 @@ pd_t *setupvm(pd_t *src)
 				char *page = kcalloc_page(PGSIZE);
 				if (!page) {
 					printk("malloc failed\n");
-					return NULL;
+					return -1;
 				}
 				pte = P2V(PADDR(pte));
 				memcpy(page, pte, PGSIZE);
@@ -174,5 +157,51 @@ pd_t *setupvm(pd_t *src)
 			}
 		}
 	}
-	return new_pd;
+	return 0;
+}
+
+int overwriteuvm(pd_t *new_pd, void *image, size_t size)
+{
+	size_t copy_size = PGSIZE;
+	size_t curr_size = 0;
+	void *virt = 0;
+
+	while (curr_size < size) {
+		if ((size - curr_size) < PGSIZE)
+			copy_size = (size - curr_size);
+
+		void *page = kcalloc_page(PGSIZE);
+		if (!page) {
+			printk("malloc failed\n");
+			return -1;
+		}
+		memcpy(page, image, copy_size);
+		pte_t **pte = pte_walk(new_pd, virt, true);
+		*pte = (pte_t *) ((uintptr_t) V2P(page) | PTE_P | PTE_W | PTE_U);
+		image = (void *) ((uintptr_t) image + copy_size);
+		curr_size += copy_size;
+		virt = (void *) ((uintptr_t) virt + copy_size);
+	}
+	return 0;
+}
+
+void init_paging()
+{
+	pd_t *init_pd = setupkvm();
+	if (!init_pd) {
+		printk("%s: setupkvm failure\n", __func__);
+		return;
+	}
+
+	printk("Kernel Memory Map:\n");
+	int i;
+	for (i = 0; i < ARR_SIZE(kmap); i++) {
+		size_t size = (uintptr_t) kmap[i].phys_end -
+				(uintptr_t) kmap[i].phys_start;
+		printk("[virt: %x] [phy: %x] [size: %x]\n",
+				kmap[i].virt, kmap[i].phys_start, size);
+	}
+
+	irq_install_handler(14, page_fault);
+	switch_pgdir(V2P(init_pd));
 }

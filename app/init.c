@@ -6,16 +6,11 @@ int main(void)
 	write("User application started\n", 25);
 	int ret = fork();
 	if (ret == 0) {
-		for (;;) {
-			write(b, sizeof(b)-1);
-			volatile int a = 1 << 20;
-			while (a--)
-				;
-		}
+		exec("shell");
 	} else {
 		for (;;) {
 			write(a, sizeof(a)-1);
-			volatile int a = 1 << 20;
+			volatile int a = 1 << 23;
 			while (a--)
 				;
 		}

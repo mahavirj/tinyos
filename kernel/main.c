@@ -9,6 +9,7 @@
 #include <task.h>
 #include <sync.h>
 
+#if 0
 static int count = 1;
 static struct spinlock lock;
 static void t1();
@@ -39,6 +40,7 @@ static void t1()
 		release(&lock);
 	}
 }
+#endif
 
 static void print_banner()
 {
@@ -53,12 +55,15 @@ int kmain(void)
 	init_vga();
 	print_banner();
 	mem_init(&end, PHYS_RAM - (int) V2P(&end));
+	printk("Initialized memory allocator\n");
 	init_paging();
+	printk("Initialized kernel paging\n");
 	init_gdt();
 	init_idt();
+	printk("Initialized gdt/idt settings\n");
 	init_keyboard();
 	init_timer(100);
-	create_task(t1);
+	create_init_task();
 	init_scheduler();
 	printk("HALT! Unreachable code\n");
 	for (;;)
