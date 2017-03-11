@@ -60,7 +60,7 @@ int kmain(void)
 	printk("Initialized kernel paging\n");
 	init_gdt();
 	init_idt();
-	printk("Initialized gdt/idt settings\n");
+	printk("Initialized descriptors\n");
 	init_keyboard();
 	init_timer(100);
 	create_init_task();

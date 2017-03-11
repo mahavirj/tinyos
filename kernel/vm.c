@@ -177,6 +177,9 @@ int overwriteuvm(pd_t *new_pd, void *image, size_t size)
 		}
 		memcpy(page, image, copy_size);
 		pte_t **pte = pte_walk(new_pd, virt, true);
+		if (*pte)
+			kfree_page(P2V(PADDR(*pte)));
+
 		*pte = (pte_t *) ((uintptr_t) V2P(page) | PTE_P | PTE_W | PTE_U);
 		image = (void *) ((uintptr_t) image + copy_size);
 		curr_size += copy_size;
