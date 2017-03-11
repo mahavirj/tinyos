@@ -35,6 +35,7 @@ c_srcs := $(foreach dir, $(kernel_src_dir), $(wildcard $(dir)/*.c))
 asm_srcs := $(foreach dir, $(boot_src_dir), $(wildcard $(dir)/*.s))
 c_objs := $(c_srcs:%.c=$(objdir)/%.o)
 asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
+syscall_obj := $(objdir)/$(boot_src_dir)/syscall.o
 
 CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -DVERSION=\"$(VERSION)\"
 CFLAGS += -Iinclude/kernel \
@@ -60,15 +61,11 @@ ramfs.obj: $(app_obj_dir)/init $(app_obj_dir)/shell
 
 $(app_obj_dir)/init: $(app_src_dir)/init.c
 	@echo "  APP   $<"
-	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< $(objdir)/$(boot_src_dir)/syscall.o -o _tmp
-	$(V)$(OBJCOPY) -O binary _tmp $@
-	$(V)rm -f _tmp
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< $(syscall_obj) -o $@
 
 $(app_obj_dir)/shell: $(app_src_dir)/shell.c
 	@echo "  APP   $<"
-	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< $(objdir)/$(boot_src_dir)/syscall.o -o _tmp
-	$(V)$(OBJCOPY) -O binary _tmp $@
-	$(V)rm -f _tmp
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< $(syscall_obj) -o $@
 
 pre-build:
 	@mkdir -p $(objdir)

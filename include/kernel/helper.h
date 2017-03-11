@@ -7,6 +7,9 @@
 #define ALIGN(x, align) \
         (((x) + ((align) - 1)) & ~((align) - 1))
 
+#define PTRINC(x, inc) \
+	(void *) ((uintptr_t) (x) + (inc))
+
 #define ARR_SIZE(x) \
 	(int) ((sizeof(x)) / (sizeof(*(x))))
 

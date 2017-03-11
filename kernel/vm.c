@@ -6,6 +6,7 @@
 #include <string.h>
 #include <helper.h>
 #include <vm.h>
+#include <errno.h>
 
 void page_fault(registers_t *regs)
 {
@@ -88,8 +89,7 @@ static int map_pages(pd_t *pd, const void *virt, void *phys,
 	/* Align addresses to nearest page boundary */
 	char *v = (char *) virt;
 	char *p = (char *) PADDR(phys);
-	size += (PGSIZE - 1);
-	size &= ~(PGSIZE - 1);
+	size = ALIGN(size, PGSIZE);
 
 	for (i = 0; i < size; i += PGSIZE, p += PGSIZE, v += PGSIZE) {
 		pte = pte_walk(pd, v, true);
@@ -126,7 +126,7 @@ pd_t *setupkvm()
 	return new_pd;
 }
 
-int setupuvm(pd_t *new_pd, pd_t *src)
+int cloneuvm(pd_t *new_pd, pd_t *src)
 {
 	int i;
 
@@ -137,12 +137,12 @@ int setupuvm(pd_t *new_pd, pd_t *src)
 	pde_t *pde = src->pdes[0];
 	if ((uintptr_t) pde & PTE_P) {
 		/* This will allocate PTE table */
-		pte_walk(new_pd, (void *) 0, 1);
+		pte_walk(new_pd, (void *) 0, true);
 		pde = P2V(PADDR(pde));
 		for (i = 0; i < 1024; i++) {
 			pte_t *pte = pde->ptes[i];
 			pte_t **d = pte_walk(new_pd,
-				(void *) (i << PTXSHIFT), 0);
+				(void *) (i << PTXSHIFT), false);
 			if ((uintptr_t) pte & PTE_P) {
 				/* We need to copy 4K page here */
 				char *page = kcalloc_page(PGSIZE);
@@ -160,31 +160,95 @@ int setupuvm(pd_t *new_pd, pd_t *src)
 	return 0;
 }
 
-int overwriteuvm(pd_t *new_pd, void *image, size_t size)
+int allocuvm(pd_t *new_pd, void *virt, int size)
 {
-	size_t copy_size = PGSIZE;
-	size_t curr_size = 0;
-	void *virt = 0;
+	int i;
+	/* Align size to page boundary */
+	size = ALIGN(size, PGSIZE);
 
-	while (curr_size < size) {
-		if ((size - curr_size) < PGSIZE)
-			copy_size = (size - curr_size);
-
+	for (i = 0; i < size; i += PGSIZE, virt = PTRINC(virt, PGSIZE)) {
 		void *page = kcalloc_page(PGSIZE);
 		if (!page) {
 			printk("malloc failed\n");
 			return -1;
 		}
-		memcpy(page, image, copy_size);
 		pte_t **pte = pte_walk(new_pd, virt, true);
-		if (*pte)
-			kfree_page(P2V(PADDR(*pte)));
+		if (!pte) {
+			printk("page table walk failed\n");
+			return -1;
+		}
 
-		*pte = (pte_t *) ((uintptr_t) V2P(page) | PTE_P | PTE_W | PTE_U);
-		image = (void *) ((uintptr_t) image + copy_size);
-		curr_size += copy_size;
-		virt = (void *) ((uintptr_t) virt + copy_size);
+		*pte = (pte_t *) ((uintptr_t) V2P(page) |
+					PTE_P | PTE_W | PTE_U);
 	}
+	return 0;
+}
+
+int loaduvm(pd_t *new_pd, void *virt, void *data, size_t size)
+{
+	size_t copy_size;
+	size_t curr_size = 0;
+	int offset;
+
+	if (!new_pd || !data || !size)
+		return -EINVAL;
+
+	copy_size = PGSIZE;
+	while (curr_size < size) {
+		if (!PG_ALIGN(virt)) {
+			/* Virtual address is not aligned, set offset */
+			offset = PG_OFFSET(virt);
+		} else {
+			offset = 0;
+		}
+
+		copy_size -= offset;
+		if ((size - curr_size) < copy_size)
+			copy_size = (size - curr_size);
+
+		pte_t **pte = pte_walk(new_pd, virt, false);
+		if (!*pte) {
+			printk("pte doesn't exists\n");
+			return -1;
+		}
+
+		void *src_addr = P2V(PADDR(*pte));
+		src_addr = PTRINC(src_addr, offset);
+		memcpy(src_addr, data, copy_size);
+
+		data = PTRINC(data, copy_size);
+		curr_size += copy_size;
+		virt = PTRINC(virt, copy_size);
+	}
+	return 0;
+}
+
+int deallocvm(pd_t *pd)
+{
+	int i;
+	pde_t *pde;
+
+	for (i = (KERNBASE >> PDXSHIFT); i < 1024; i++) {
+		pde = pd->pdes[i];
+		if ((uintptr_t) pde & PTE_P)
+			kfree_page(P2V(PADDR(pde)));
+	}
+
+	/* We will assume that user mode vma for process would be
+	 * well within first 4M boundary, just to simplify clone
+	 * process.
+	 */
+	pde = pd->pdes[0];
+	if ((uintptr_t) pde & PTE_P) {
+		pde = P2V(PADDR(pde));
+		for (i = 0; i < 1024; i++) {
+			pte_t *pte = pde->ptes[i];
+			if ((uintptr_t) pte & PTE_P)
+				kfree_page(P2V(PADDR(pte)));
+		}
+		kfree_page(pde);
+	}
+	kfree_page(pd);
 	return 0;
 }
 

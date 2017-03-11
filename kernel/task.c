@@ -7,6 +7,7 @@
 #include <vm.h>
 #include <gdt.h>
 #include <cpio_parser.h>
+#include <elf.h>
 
 /* Task list */
 static list_head_t *task_list;
@@ -18,6 +19,47 @@ static int pid;
 static pd_t *current_pd;
 
 extern void task_ret();
+
+static int load_elf(struct task *t, pd_t *pd, void *data)
+{
+	int ret;
+	Elf32_Ehdr *elf_hdr;
+
+	elf_hdr = (Elf32_Ehdr *) data;
+	if (strncmp((char *) elf_hdr->e_ident, ELFMAG, SELFMAG) != 0) {
+		printk("Invalid ELF image\n");
+		return -1;
+	}
+	if (elf_hdr->e_ident[EI_CLASS] != ELFCLASS32) {
+		printk("Invalid ELF class, only 32 bit supported\n");
+		return -1;
+	}
+	Elf32_Phdr *elf_sh = (Elf32_Phdr *) PTRINC(elf_hdr, elf_hdr->e_phoff);
+
+	int i;
+	for (i = 0; i < elf_hdr->e_phnum; i++) {
+		if (elf_sh[i].p_type != PT_LOAD)
+			continue;
+
+		ret = allocuvm(pd, (void *) elf_sh[i].p_vaddr,
+						elf_sh[i].p_memsz);
+		if (ret) {
+			printk("allocuvm failure\n");
+			return -1;
+		}
+		ret = loaduvm(pd, (void *) elf_sh[i].p_vaddr,
+				PTRINC(elf_hdr, elf_sh[i].p_offset),
+				elf_sh[i].p_filesz);
+		if (ret) {
+			printk("loaduvm failure\n");
+			return -1;
+		}
+	}
+	/* Set task entry point */
+	t->irqf->eip = elf_hdr->e_entry;
+
+	return 0;
+}
 
 struct task *alloctask()
 {
@@ -88,7 +130,6 @@ int create_init_task()
 	init_task->irqf->cs = (SEG_UCODE << 3) | DPL_USER;
 	init_task->irqf->ds = (SEG_UDATA << 3) | DPL_USER;
 	init_task->irqf->eflags = 0x200;
-	init_task->irqf->eip = (uint32_t) 0;
 	init_task->irqf->ss = (SEG_UDATA << 3) | DPL_USER;
 	init_task->irqf->useresp = (uint32_t) STACK_SIZE - 16;
 
@@ -100,9 +141,9 @@ int create_init_task()
 		return -1;
 	}
 
-	ret = overwriteuvm(init_task->pd, init, size);
+	ret = load_elf(init_task, init_task->pd, init);
 	if (ret) {
-		printk("failure in exec`ing init\n");
+		printk("failed to load elf\n");
 		return -1;
 	}
 
@@ -125,14 +166,15 @@ int sys_fork()
 	/* Clone page directory, kernel code/heap is linked (not copied),
 	 * rest copied from parent process, i.e. curent process.
 	 */
-	ret = setupuvm(t->pd, current_pd);
+	ret = cloneuvm(t->pd, current_pd);
 	if (ret) {
-		printk("setupuvm failed\n");
+		printk("cloneuvm failed\n");
 		return -1;
 	}
 
 	/* Clone exception frame from parent task */
 	*t->irqf = *current_task->irqf;
+	/* Child return value should be zero */
 	t->irqf->eax = 0;
 
 	/* Set parent task */
@@ -155,15 +197,29 @@ int sys_exec(const char *fname)
 		return -1;
 	}
 
-	ret = overwriteuvm(current_task->pd, fstart, size);
-	if (ret) {
-		printk("failure in exec`ing process\n");
+	/* Create page tables, kernel code/heap is linked (not copied) */
+	pd_t *new_pd = setupkvm();
+	if (!new_pd) {
+		printk("page dir clone failed\n");
 		return -1;
 	}
 
-	current_task->irqf->eip = (uint32_t) 0;
+	ret = load_elf(current_task, new_pd, fstart);
+	if (ret) {
+		printk("failed to load elf\n");
+		return -1;
+	}
+
 	current_task->irqf->useresp = (uint32_t) STACK_SIZE - 16;
+
+	/* Save old page dir pointer */
+	pd_t *old_pd = current_task->pd;
+	current_task->pd = new_pd;
+	/* Switch to new page dir */
 	switch_pgdir(V2P(current_task->pd));
+	/* Now we can safely free older page dir */
+	deallocvm(old_pd);
+
 	return 0;
 }
 

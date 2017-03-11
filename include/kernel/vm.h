@@ -32,6 +32,12 @@
 #define V2P(virt) \
 	(void *) ((uintptr_t) (virt) - KERNBASE)
 
+#define PG_ALIGN(x) \
+		(!(((uintptr_t) (x) & (0xfff))))
+
+#define PG_OFFSET(x) \
+		((uintptr_t) (x) & (0xfff))
+
 typedef uint32_t pte_t;
 
 typedef struct {
@@ -75,8 +81,19 @@ void switch_pgdir(void *pg_dir);
  **/
 void page_fault(registers_t *regs);
 
+/** Sets up kernel memory mappings in page directory */
 pd_t *setupkvm();
-int setupuvm(pd_t *new_pd, pd_t *current_pd);
-int overwriteuvm(pd_t *new_pd, void *app, size_t size);
+
+/** Clones parent process tables for user space to child */
+int cloneuvm(pd_t *new_pd, pd_t *current_pd);
+
+/** Allocates new memory mapping for given address in virtual space */
+int allocuvm(pd_t *new_pd, void *virt, int size);
+
+/** Loads data to newly allocated virtual memory address range */
+int loaduvm(pd_t *new_pd, void *virt, void *data, size_t size);
+
+/** Deallocates entire virtual address space and frees up page directory */
+int deallocvm(pd_t *pd);
 
 #endif /* __VM_H__ */
