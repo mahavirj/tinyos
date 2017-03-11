@@ -37,6 +37,7 @@ struct cpu {
 	struct context *context;
 };
 
+#define STACK_ADDR (1U << 22)
 #define STACK_SIZE 4096
 #define INIT_TASK_NAME "init"
 

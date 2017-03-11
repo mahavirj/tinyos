@@ -41,6 +41,8 @@ static int load_elf(struct task *t, pd_t *pd, void *data)
 		if (elf_sh[i].p_type != PT_LOAD)
 			continue;
 
+		printk("Loading [virt: %p], [size: %x]\n",
+				elf_sh[i].p_vaddr, elf_sh[i].p_memsz);
 		ret = allocuvm(pd, (void *) elf_sh[i].p_vaddr,
 						elf_sh[i].p_memsz);
 		if (ret) {
@@ -55,7 +57,18 @@ static int load_elf(struct task *t, pd_t *pd, void *data)
 			return -1;
 		}
 	}
+
+	/* Stack will be set up at last 4K in 4M region */
+	ret = allocuvm(pd, (void *) (STACK_ADDR - STACK_SIZE), STACK_SIZE);
+	if (ret) {
+		printk("allocuvm failure\n");
+		return -1;
+	}
+	/* FIXME: why stack needs to be little lower? */
+	t->irqf->useresp = STACK_ADDR - 16;
+
 	/* Set task entry point */
+	printk("Setting entry point %x\n", elf_hdr->e_entry);
 	t->irqf->eip = elf_hdr->e_entry;
 
 	return 0;
@@ -131,7 +144,6 @@ int create_init_task()
 	init_task->irqf->ds = (SEG_UDATA << 3) | DPL_USER;
 	init_task->irqf->eflags = 0x200;
 	init_task->irqf->ss = (SEG_UDATA << 3) | DPL_USER;
-	init_task->irqf->useresp = (uint32_t) STACK_SIZE - 16;
 
 	unsigned long size;
 	void *init = cpio_get_file(_binary_ramfs_cpio_start,
@@ -209,8 +221,6 @@ int sys_exec(const char *fname)
 		printk("failed to load elf\n");
 		return -1;
 	}
-
-	current_task->irqf->useresp = (uint32_t) STACK_SIZE - 16;
 
 	/* Save old page dir pointer */
 	pd_t *old_pd = current_task->pd;

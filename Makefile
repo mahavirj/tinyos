@@ -44,7 +44,7 @@ CFLAGS += -Iinclude/kernel \
 LDSCRIPT = -T ldscript/linker.ld
 APP_LDSCRIPT = -T app/linker.ld
 LDFLAGS = -nostdlib -Wl,--build-id=none
-APP_LDFLAGS = -Ttext 0x0 -e main
+APP_LDFLAGS = -Ttext 0x100000 -e main
 ASFLAGS = -f elf
 
 define make-repo
