@@ -190,7 +190,7 @@ int loaduvm(pd_t *new_pd, void *virt, void *data, size_t size)
 	size_t curr_size = 0;
 	int offset;
 
-	if (!new_pd || !data || !size)
+	if (!new_pd || !data)
 		return -EINVAL;
 
 	copy_size = PGSIZE;
