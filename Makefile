@@ -85,7 +85,7 @@ $(os_image): $(kernel)
                 -A os -input-charset utf8 -quiet -boot-info-table -o $@ iso
 
 run: all
-	bochs -qf tools/bochsrc.txt #-rc tools/bochsrc.debug
+	bochs -qf tools/bochsrc.txt -rc tools/bochsrc.debug
 
 qemu: all
 	qemu-system-i386 -cdrom bin/os.iso -m 32
