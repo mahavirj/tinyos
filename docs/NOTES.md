@@ -37,3 +37,10 @@ prevents user code from triggering random interrupts. If these checks fail – y
 guessed it – a general-protection exception happens. All Linux interrupt handlers
 end up running in ring zero.
 http://duartes.org/gustavo/blog/post/cpu-rings-privilege-and-protection/
+
+* **Locking**
+Probably there should be system call interface, if there is contention for lock, as
+process would like to change its state and yield CPU. But Linux has `futex` (fast user
+space mutex) that allows atomic test-and-set or compare-and-swap on user space
+variable and if there is no contention, then no system call is required, as no yield
+is required.
