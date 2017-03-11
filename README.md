@@ -1,6 +1,6 @@
 # TinyOS
 
-X86 based Operating system built from scratch for learning purpose
+X86 based Operating system built from scratch for learning purpose:
 
 * KISS (Keep It Simple Stupid) Philosophy
 * Bootloader is assumed to be GRUB, kernel has GRUB specific multiboot header
@@ -8,7 +8,7 @@ X86 based Operating system built from scratch for learning purpose
 ## Features
 
 * Higher half kernel
-Kernel set itself up to run from higher half, 3G+1M region
+Kernel set itself up to run from higher half, 3GB region
 * Multitasking
  * Basic scheduler with multitasking support, round robin, with same priority
  * Timer interrupt forces context switch
@@ -17,8 +17,14 @@ Kernel set itself up to run from higher half, 3G+1M region
  * Kernel code runs in ring 0, and user code in ring 3
  * System call happens through `int 64` which has required GATE descriptors for
 privilege escalation
+* Initramfs
+ * Standard cpio format for ramfs (no gzip compression)
+ * Standard ELF format for user space applications
 * Fork support
  * Clone parent process, no COW support
+* Exec support
+ * Overwrite address space with new process
+
 
 # Overview
 
@@ -38,7 +44,10 @@ To run under QEMU with debugging support (GDB)
 
 
 # Additional Notes
-[Technical notes](docs/Notes.md)
+[Technical notes](docs/NOTES.md)
+
+# Contributing
+Feel free to fork and send merge request
 
 # References
 
