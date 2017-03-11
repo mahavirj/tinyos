@@ -1,10 +1,11 @@
+#include <tinyos.h>
+
 int a = 0xa5a5;
-char buf[5000];
 int main()
 {
-	if (a = 0xa5a5 && !buf[4500])
-		write("I am shell\n", 11);
+	if (a == 0xa5a5)
+		printf("I am shell\n");
 	else
-		write("I lost you\n", 11);
+		printf("I lost you\n");
 	for(;;);
 }

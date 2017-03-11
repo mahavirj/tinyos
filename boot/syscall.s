@@ -10,8 +10,8 @@ fork:
 	int 64
 	ret
 
-[GLOBAL exec]
-exec:
+[GLOBAL execve]
+execve:
 	mov eax, 2
 	int 64
 	ret

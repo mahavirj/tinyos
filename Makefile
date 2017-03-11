@@ -4,6 +4,7 @@ CC := gcc
 AS := nasm
 OBJDUMP := objdump
 OBJCOPY := objcopy
+AR := ar
 
 # Tiny OS version
 VERSION := 0.1
@@ -35,7 +36,12 @@ c_srcs := $(foreach dir, $(kernel_src_dir), $(wildcard $(dir)/*.c))
 asm_srcs := $(foreach dir, $(boot_src_dir), $(wildcard $(dir)/*.s))
 c_objs := $(c_srcs:%.c=$(objdir)/%.o)
 asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
-syscall_obj := $(objdir)/$(boot_src_dir)/syscall.o
+
+app_lib_objs := $(objdir)/$(boot_src_dir)/syscall.o \
+		$(objdir)/stdlib/stdlib.o \
+		$(objdir)/stdlib/printf.o \
+
+app_lib := $(objdir)/lib_helper.a
 
 CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -DVERSION=\"$(VERSION)\"
 CFLAGS += -Iinclude/kernel \
@@ -44,7 +50,7 @@ CFLAGS += -Iinclude/kernel \
 LDSCRIPT = -T ldscript/linker.ld
 APP_LDSCRIPT = -T app/linker.ld
 LDFLAGS = -nostdlib -Wl,--build-id=none
-APP_CFLAGS := -g -O2 -m32 -static -fno-pic -Wall -Wextra -ffreestanding
+APP_CFLAGS := -g -O2 -m32 -static -fno-pic -Wall -Wextra -ffreestanding -I app/
 APP_LDFLAGS := -nostdlib -Ttext 0x100000 -e main -Wl,--build-id=none
 ASFLAGS = -f elf
 
@@ -57,17 +63,20 @@ endef
 
 all: pre-build $(kernel) $(os_image)
 
-ramfs.obj: $(app_obj_dir)/init $(app_obj_dir)/shell
+ramfs.obj: $(app_lib) $(app_obj_dir)/init $(app_obj_dir)/shell
 	$(V)cd $(app_obj_dir) && find . | cpio -o -H newc > ../ramfs.cpio
 	$(V)cd $(objdir) && $(OBJCOPY) -I binary -O elf32-i386 -B i386 ramfs.cpio $@
 
+$(app_lib): $(app_lib_objs)
+	$(V)$(AR) cru $@ $^
+
 $(app_obj_dir)/init: $(app_src_dir)/init.c
 	@echo "  APP   $<"
-	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(syscall_obj) -o $@
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(app_lib) -o $@
 
 $(app_obj_dir)/shell: $(app_src_dir)/shell.c
 	@echo "  APP   $<"
-	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(syscall_obj) -o $@
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(app_lib) -o $@
 
 pre-build:
 	@mkdir -p $(objdir)

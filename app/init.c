@@ -1,15 +1,19 @@
+#include <tinyos.h>
+#include <unistd.h>
+
 char a[] = "Hello World Parent!\n";
 char b[] = "Hello World Child!\n";
 
 int main(void)
 {
-	write("User application started\n", 25);
+	char *argv = NULL;
+	printf("User application started\n");
 	int ret = fork();
 	if (ret == 0) {
-		exec("shell");
+		execve("shell", &argv, NULL);
 	} else {
 		for (;;) {
-			write(a, sizeof(a)-1);
+			printf("%s", a);
 			volatile int a = 1 << 23;
 			while (a--)
 				;

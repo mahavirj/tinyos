@@ -68,7 +68,6 @@ static int load_elf(struct task *t, pd_t *pd, void *data)
 	t->irqf->useresp = STACK_ADDR - 16;
 
 	/* Set task entry point */
-	printk("Setting entry point %x\n", elf_hdr->e_entry);
 	t->irqf->eip = elf_hdr->e_entry;
 
 	return 0;

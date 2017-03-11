@@ -77,10 +77,11 @@ static void syscall_handler(registers_t *r)
 {
 	/* write system call */
 	if (r->eax == 0) {
+		/* First argument is fd, ignore for now */
 		/* buffer to print on VGA */
-		char *buf = (char *) (*(int *)(r->useresp + 4));
+		char *buf = (char *) (*(int *)(r->useresp + 8));
 		/* length of buffer */
-		int len = *(int *) (r->useresp + 8);
+		int len = *(int *) (r->useresp + 12);
 		vga_write_buf(buf, len);
 	/* fork system call */
 	} else if (r->eax == 1) {

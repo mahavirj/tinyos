@@ -1,6 +1,58 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+int dec_to_str(const int num, char ostr[])
+{
+	int quot, i;
+	char rem;
+
+	quot = num;
+	i = 0;
+	do {
+		rem = (quot % 10) + '0';
+		quot /= 10;
+		ostr[i++] = rem;
+	} while (quot);
+
+	int start, end;
+	char temp;
+	for (end = i - 1, start = 0; start < end; end--, start++) {
+		temp = ostr[start];
+		ostr[start] = ostr[end];
+		ostr[end] = temp;
+	}
+
+	ostr[i] = '\0';
+	return i;
+}
+
+int hex_to_str(const int num, char ostr[])
+{
+	int index = 32;
+	int val;
+	int cnt = 0;
+
+	do {
+		index -= 4;
+		val = (num >> index) & 0xf;
+	} while (!val && index);
+
+	ostr[cnt++] = '0';
+	ostr[cnt++] = 'x';
+	do {
+		if (val > 9)
+			val = 'A' + (val - 10);
+		else
+			val += '0';
+		ostr[cnt++] = val;
+		index -= 4;
+		val = (num >> index) & 0xf;
+	} while (index >= 0);
+
+	ostr[cnt] = '\0';
+	return cnt;
+}
+
 size_t strlen(const char *s)
 {
 	int i;
