@@ -22,3 +22,10 @@ idt_load:
     mov eax, [esp+4]
     lidt [eax]
     ret
+
+[GLOBAL tss_flush]    ; Allows our C code to call tss_flush().
+tss_flush:
+   mov ax, 0x28      ; Load the index of our TSS structure - The index is
+                     ; 0x28, as it is the 5th selector
+   ltr ax            ; Load ax into the task state register.
+   ret

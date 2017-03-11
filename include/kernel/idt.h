@@ -74,4 +74,6 @@ void irq13();
 void irq14();
 void irq15();
 
+void irq64();
+
 #endif /* __IDT_H__ */

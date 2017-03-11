@@ -107,6 +107,8 @@ IRQ   12,   44
 IRQ   13,   45
 IRQ   14,   46
 IRQ   15,   47
+; system call handling exception
+IRQ   64,   64
 
  ; In isr.c
 [EXTERN irq_handler]

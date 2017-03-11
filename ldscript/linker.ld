@@ -24,6 +24,11 @@ SECTIONS {
 		*(.bss*)             /* all bss sections from all files */
 	}
 
+	.userapp ALIGN (0x1000) :    /* align at 4 KB */
+	{
+		*(.userapp*)
+	}
+
 	. = ALIGN(4);
 	end = .;
 }

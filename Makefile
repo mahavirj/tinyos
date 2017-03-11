@@ -2,7 +2,8 @@
 # Compiler GCC
 CC := gcc
 AS := nasm
-OBJDUMP:= objdump
+OBJDUMP := objdump
+OBJCOPY := objcopy
 
 # Tiny OS version
 VERSION := 0.1
@@ -35,7 +36,9 @@ CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -MMD -DVERSION=\"$(VERSION)\"
 CFLAGS += -Iinclude/kernel \
 	-Iinclude/drivers \
 
-LDFLAGS = -T ldscript/linker.ld -nostdlib -Wl,--build-id=none
+LDSCRIPT = -T ldscript/linker.ld
+APP_LDSCRIPT = -T app/linker.ld
+LDFLAGS = -nostdlib -Wl,--build-id=none
 ASFLAGS = -f elf
 
 define make-repo
@@ -47,13 +50,18 @@ endef
 
 all: pre-build $(kernel) $(os_image)
 
+$(objdir)/userapp: app/userapp.c
+	@echo "  APP   $<"
+	$(V)$(AS) $(ASFLAGS) app/syscall.s -o app/syscall.o
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDSCRIPT) $< app/syscall.o -o $@
+
 pre-build:
 	@mkdir -p $(objdir)
 	@$(call make-repo)
 
-$(kernel): ldscript/linker.ld $(asm_objs) $(c_objs)
+$(kernel): ldscript/linker.ld $(asm_objs) $(c_objs) $(objdir)/userapp
 	@echo "  LD    $@"
-	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(LDSCRIPT) $(asm_objs) $(c_objs) $(objdir)/userapp -o $@
 	$(V)$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(objdir)/kernel.sym
 
 $(os_image): $(kernel)

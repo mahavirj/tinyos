@@ -1,6 +1,7 @@
 #include <isr.h>
 #include <vga.h>
 #include <helper.h>
+#include <task.h>
 
 static void *irq_handlers[256];
 
@@ -72,11 +73,32 @@ void irq_uninstall_handler(int irq)
 	irq_handlers[irq] = 0;
 }
 
+static void syscall_handler(registers_t *r)
+{
+	/* write system call */
+	if (r->eax == 1) {
+		/* buffer to print on VGA */
+		char *buf = (char *) (*(int *)(r->useresp + 4));
+		/* length of buffer */
+		int len = *(int *) (r->useresp + 8);
+		vga_write_buf(buf, len);
+	/* fork system call */
+	} else if (r->eax == 2) {
+		/* FIXME: do we need to set current task `irqf` to `r` here? */
+		r->eax = (uint32_t) create_task(0);
+	}
+}
+
 // This gets called from our ASM interrupt handler stub.
 void irq_handler(registers_t *r)
 {
 	/* This is a blank function pointer */
 	void (*handler)(registers_t *r);
+
+	if (r->int_no == IRQ_SYSCALL) {
+		syscall_handler(r);
+		return;
+	}
 
 	/* If the IDT entry that was invoked was greater than 40
 	 *  (meaning IRQ8 - 15), then we need to send an EOI to

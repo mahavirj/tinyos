@@ -8,8 +8,8 @@
  * will cause an "Unhandled Interrupt" exception. Any descriptor
  * for which the 'presence' bit is cleared (0) will generate an
  * "Unhandled Interrupt" exception */
-struct idt_entry idt[256];
-struct idt_ptr idtp;
+static struct idt_entry idt[256];
+static struct idt_ptr idtp;
 
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags)
 {
@@ -18,9 +18,7 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags)
 
 	idt[num].sel     = sel;
 	idt[num].always0 = 0;
-	// We must uncomment the OR below when we get to using user-mode.
-	// It sets the interrupt gate's privilege level to 3.
-	idt[num].flags   = flags /* | 0x60 */;
+	idt[num].flags   = flags;
 }
 
 static void irq_remap()
@@ -97,6 +95,9 @@ void init_idt()
 	idt_set_gate(45, (uint32_t) irq13, 0x08, 0x8E);
 	idt_set_gate(46, (uint32_t) irq14, 0x08, 0x8E);
 	idt_set_gate(47, (uint32_t) irq15, 0x08, 0x8E);
+
+	// Flags are set so that interrupt gate is set to DPL = 3
+	idt_set_gate(64, (uint32_t) irq64, 0x08, 0x8E | 0x60);
 
 	idt_load(&idtp);
 }

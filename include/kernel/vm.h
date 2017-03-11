@@ -13,6 +13,7 @@
 #define PHYS_RAM	0x02000000
 #define PTE_P 		0x001
 #define PTE_W 		0x002
+#define PTE_U 		0x004
 #define PTE_PS 		0x080
 
 #define PDINDEX(x) \

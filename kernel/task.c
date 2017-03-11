@@ -69,13 +69,21 @@ int create_task(void (*fn_ptr)(void))
 	memset(t->context, 0, sizeof(*t->context));
 	t->context->eip = (uint32_t) task_ret;
 
-	/* FIXME: remove code segment, data segment related hardcodings */
-	t->irqf->cs = 0x8;
-	t->irqf->ds = 0x10;
-	t->irqf->eflags = 0x200;
-	t->irqf->esp = (uint32_t) t->kstack + STACK_SIZE;
-	t->irqf->eip = (uint32_t) fn_ptr;
+	if (!init_task) {
+		/* Task will start in CPL = 3, i.e. user mode */
+		t->irqf->cs = (SEG_UCODE << 3) | DPL_USER;
+		t->irqf->ds = (SEG_UDATA << 3) | DPL_USER;
+		t->irqf->eflags = 0x200;
+		t->irqf->eip = (uint32_t) 0;
+		t->irqf->ss = (SEG_UDATA << 3) | DPL_USER;
+		t->irqf->useresp = (uint32_t) STACK_SIZE - 16;
+	} else {
+		/* Clone exception frame from parent task */
+		*t->irqf = *current_task->irqf;
+		t->irqf->eax = 0;
+	}
 
+	t->kstack += STACK_SIZE;
 	/* Initialize wait queue with first task */
 	list_add_tail(&t->next, task_list);
 
@@ -85,7 +93,7 @@ int create_task(void (*fn_ptr)(void))
 	if (!init_task)
 		init_task = t;
 
-	return 0;
+	return pid;
 }
 
 void task_sleep(void *resource)
@@ -109,19 +117,6 @@ void task_wakeup(void *resource)
 		t->state = TASK_READY;
 	}
 	sti();
-}
-
-void sched()
-{
-	tiny_schedule();
-}
-
-void yield()
-{
-	if (current_task && current_task->state == TASK_RUNNING) {
-		current_task->state = TASK_READY;
-		tiny_schedule();
-	}
 }
 
 void trace_tasks()
@@ -167,7 +162,8 @@ void tiny_schedule()
 	list_for_each(node, task_list) {
 		/* Validate task struct */
 		new_task = list_entry(node, struct task, next);
-		if (!new_task || new_task->state != TASK_READY)
+		if (!new_task || new_task == current_task
+					 || new_task->state != TASK_READY)
 			continue;
 
 		/* Make this last for round robin */
@@ -178,8 +174,11 @@ void tiny_schedule()
 	}
 
 	if (found) {
+		/* Set kernel mode stack in task state segment */
+		set_kernel_stack((uint32_t) new_task->kstack);
+
 		/* Switch page directory to new task */
-		switch_pgdir(new_task->pd);
+		switch_pgdir(V2P(new_task->pd));
 
 		/* Set current page directory*/
 		current_pd = new_task->pd;
@@ -192,8 +191,25 @@ void tiny_schedule()
 		new_task->state = TASK_RUNNING;
 		/* Switch context */
 		swtch(&prev_task->context, new_task->context);
+	} else {
+		/* Scheduler did not find anything to switch to, hence
+		 * reset current task status.
+		 */
+		current_task->state = TASK_RUNNING;
 	}
-
 	/* Globally enable interrupts */
 	sti();
+}
+
+void yield()
+{
+	if (current_task && current_task->state == TASK_RUNNING) {
+		current_task->state = TASK_READY;
+		tiny_schedule();
+	}
+}
+
+void sched()
+{
+	tiny_schedule();
 }

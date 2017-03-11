@@ -15,4 +15,6 @@ void irq_install_handler(int irq, void (*handler)(registers_t *r));
 #define IRQ0 32
 #define IRQ1 33
 
+#define IRQ_SYSCALL 64
+
 #endif /* __ISR_H__ */

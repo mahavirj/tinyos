@@ -69,7 +69,7 @@ static pte_t **pte_walk(pd_t *pd, const void *virt, bool alloc)
 				return NULL;
 			pd->pdes[PDINDEX(virt)] =
 				(pde_t *)
-				((uintptr_t) V2P(pde) | PTE_P | PTE_W);
+				((uintptr_t) V2P(pde) | PTE_P | PTE_W | PTE_U);
 		} else {
 			return NULL;
 		}
@@ -129,6 +129,7 @@ void init_paging()
 	switch_pgdir(V2P(init_pd));
 }
 
+extern unsigned _bin_userapp_end, _bin_userapp_start;
 pd_t *setupvm(pd_t *src)
 {
 	int i;
@@ -140,8 +141,11 @@ pd_t *setupvm(pd_t *src)
 	/* Kernel mode mappings, only linking no clone */
 	init_kernel_mappings(new_pd);
 
-	if (!src)
+	if (!src) {
+		map_pages(new_pd, (void *) 0, (void *) V2P(&_bin_userapp_start),
+			(unsigned) &_bin_userapp_end - (unsigned) &_bin_userapp_start, PTE_W | PTE_U);
 		return new_pd;
+	}
 
 	/* We will assume that user mode vma for process would be
 	 * well within first 4M boundary, just to simplify clone
@@ -166,7 +170,7 @@ pd_t *setupvm(pd_t *src)
 				pte = P2V(PADDR(pte));
 				memcpy(page, pte, PGSIZE);
 				*d = (pte_t *) ((uintptr_t) V2P(page)
-						| PTE_P | PTE_W);
+						| PTE_P | PTE_W | PTE_U);
 			}
 		}
 	}
