@@ -1,6 +1,10 @@
 #ifndef __HELPER_H__
 #define __HELPER_H__
 
+/* Note: assuming `align` value is power of 2 */
+#define ALIGN(x, align) \
+        (((x) + ((align) - 1)) & ~((align) - 1))
+
 #define ARR_SIZE(x) \
 	(int) ((sizeof(x)) / (sizeof(*(x))))
 

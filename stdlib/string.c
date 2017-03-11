@@ -1,6 +1,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+size_t strlen(const char *s)
+{
+	int i;
+	for (i = 0; s[i]; i++)
+		;
+
+	return i;
+}
+
 char *strcpy(char *dest, const char *src)
 {
 	int i;
@@ -100,3 +109,23 @@ void *memsetw(uint16_t *s, uint16_t c, size_t n)
 		s[i] = c;
 	return s;
 }
+
+long int strtox(const char *nptr, int size)
+{
+        long int val = 0;
+        int i;
+        for (i = 0; i < size; i++) {
+                if (nptr[i] == ' ')
+                        continue;
+                val <<= 4;
+                if (nptr[i] >= '0' && nptr[i] <= '9')
+                        val += nptr[i] - '0';
+                else if (nptr[i] >= 'a' && nptr[i] <= 'f')
+                        val += (10 + (nptr[i] - 'a'));
+                else if (nptr[i] >= 'A' && nptr[i] <= 'F')
+                        val += 10 + (nptr[i] - 'A');
+        }
+
+        return val;
+}
+
