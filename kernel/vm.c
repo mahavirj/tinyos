@@ -265,7 +265,7 @@ void init_paging()
 	for (i = 0; i < ARR_SIZE(kmap); i++) {
 		size_t size = (uintptr_t) kmap[i].phys_end -
 				(uintptr_t) kmap[i].phys_start;
-		printk("[virt: %x] [phy: %x] [size: %x]\n",
+		printk("[virt: %p] [phy: %p] [size: %x]\n",
 				kmap[i].virt, kmap[i].phys_start, size);
 	}
 

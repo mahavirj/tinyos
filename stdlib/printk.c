@@ -61,6 +61,7 @@ void printk(const char *fmt, ...)
 	int d, x;
 	char c, *s;
 	const char *p;
+	void *pi;
 
 	va_start(ap, fmt);
 	for (p = fmt; *p; p++) {
@@ -80,6 +81,13 @@ void printk(const char *fmt, ...)
 		case 'x':		/* hex */
 			x = va_arg(ap, int);
 			to_hex(x);
+			break;
+		case 'p':		/* pointer */
+			pi = va_arg(ap, void *);
+			if (pi)
+				to_hex((int) pi);
+			else
+				write_str("NULL");
 			break;
 		case 'c':              /* char */
 			/* need a cast here since va_arg only
