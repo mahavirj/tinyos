@@ -44,7 +44,8 @@ CFLAGS += -Iinclude/kernel \
 LDSCRIPT = -T ldscript/linker.ld
 APP_LDSCRIPT = -T app/linker.ld
 LDFLAGS = -nostdlib -Wl,--build-id=none
-APP_LDFLAGS = -Ttext 0x100000 -e main
+APP_CFLAGS := -g -O2 -m32 -static -fno-pic -Wall -Wextra -ffreestanding
+APP_LDFLAGS := -nostdlib -Ttext 0x100000 -e main -Wl,--build-id=none
 ASFLAGS = -f elf
 
 define make-repo
@@ -62,11 +63,11 @@ ramfs.obj: $(app_obj_dir)/init $(app_obj_dir)/shell
 
 $(app_obj_dir)/init: $(app_src_dir)/init.c
 	@echo "  APP   $<"
-	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDFLAGS) $< $(syscall_obj) -o $@
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(syscall_obj) -o $@
 
 $(app_obj_dir)/shell: $(app_src_dir)/shell.c
 	@echo "  APP   $<"
-	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(APP_LDFLAGS) $< $(syscall_obj) -o $@
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(syscall_obj) -o $@
 
 pre-build:
 	@mkdir -p $(objdir)
