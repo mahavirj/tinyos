@@ -46,7 +46,7 @@ void init_scheduler();
 void tiny_schedule(void);
 int create_init_task(void);
 int sys_fork(void);
-int sys_exec(const char *fname);
+int sys_exec(void);
 void swtch(struct context **old, struct context *new);
 void yield();
 void sched();

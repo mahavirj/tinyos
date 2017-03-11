@@ -2,6 +2,7 @@
 #include <vga.h>
 #include <helper.h>
 #include <task.h>
+#include <syscall.h>
 
 static void *irq_handlers[256];
 
@@ -71,26 +72,6 @@ void irq_install_handler(int irq, void (*handler)(registers_t *r))
 void irq_uninstall_handler(int irq)
 {
 	irq_handlers[irq] = 0;
-}
-
-static void syscall_handler(registers_t *r)
-{
-	/* write system call */
-	if (r->eax == 0) {
-		/* First argument is fd, ignore for now */
-		/* buffer to print on VGA */
-		char *buf = (char *) (*(int *)(r->useresp + 8));
-		/* length of buffer */
-		int len = *(int *) (r->useresp + 12);
-		vga_write_buf(buf, len);
-	/* fork system call */
-	} else if (r->eax == 1) {
-		/* FIXME: do we need to set current task `irqf` to `r` here? */
-		r->eax = sys_fork();
-	} else if (r->eax == 2) {
-		char *fname = (char *) (*(int *)(r->useresp + 4));
-		r->eax = sys_exec(fname);
-	}
 }
 
 // This gets called from our ASM interrupt handler stub.

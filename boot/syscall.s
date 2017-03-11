@@ -15,3 +15,9 @@ execve:
 	mov eax, 2
 	int 64
 	ret
+
+[GLOBAL read]
+sleep:
+	mov eax, 3
+	int 64
+	ret

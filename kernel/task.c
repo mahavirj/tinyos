@@ -8,6 +8,7 @@
 #include <gdt.h>
 #include <cpio_parser.h>
 #include <elf.h>
+#include <syscall.h>
 
 /* Task list */
 static list_head_t *task_list;
@@ -197,10 +198,14 @@ int sys_fork()
 	return pid;
 }
 
-int sys_exec(const char *fname)
+int sys_exec()
 {
+	char *fname;
 	int ret;
 	unsigned long size;
+
+	argstr(0, &fname);
+
 	void *fstart = cpio_get_file(_binary_ramfs_cpio_start,
 					fname, &size);
 	if (!fstart) {

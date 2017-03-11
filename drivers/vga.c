@@ -2,6 +2,7 @@
 #include <string.h>
 #include <helper.h>
 #include <vm.h>
+#include <syscall.h>
 
 extern void memsetw(void *src, uint16_t value, size_t size);
 
@@ -65,7 +66,7 @@ static void cls()
 	move_cursor(_x, _y);
 }
 
-void vga_write_char(char c)
+void sys_write_char(char c)
 {
 	uint16_t *loc = fb + (_y * 80 + _x);
 	uint8_t attr = COLOR_ATTR;
@@ -99,14 +100,21 @@ void vga_write_char(char c)
 	move_cursor(_x, _y);
 }
 
-void vga_write_buf(char *buf, int len)
+int sys_write()
 {
-	if (!buf || !len)
-		return;
+	const char *buf;
+	int len;
 
-	while (len--)
-		vga_write_char(*buf++);
-	return;
+	argstr(1, (char **) &buf);
+	argint(2, &len);
+
+	if (!buf || !len)
+		return 0;
+
+	int i;
+	for (i = 0; i < len; i++)
+		sys_write_char(buf[i]);
+	return len;
 }
 
 void init_vga()

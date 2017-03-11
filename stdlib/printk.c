@@ -7,7 +7,7 @@ extern int dec_to_str(const int num, char buf[]);
 static void write_str(const char *buf)
 {
 	while (*buf)
-		vga_write_char(*buf++);
+		sys_write_char(*buf++);
 }
 
 int printk(const char *fmt, ...)
@@ -22,7 +22,7 @@ int printk(const char *fmt, ...)
 	va_start(ap, fmt);
 	for (p = fmt; *p; p++) {
 		if (*p != '%') {
-			vga_write_char(*p);
+			sys_write_char(*p);
 			continue;
 		}
 		switch (*++p) {
@@ -53,7 +53,7 @@ int printk(const char *fmt, ...)
 			/* need a cast here since va_arg only
 			   takes fully promoted types */
 			c = (char) va_arg(ap, int);
-			vga_write_char(c);
+			sys_write_char(c);
 			break;
 		}
 	}
