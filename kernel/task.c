@@ -84,7 +84,7 @@ struct task *alloctask()
 	}
 
 	/* Allocate task stack, fixed to 4K for now */
-	t->kstack = (uint8_t *) kcalloc_page(STACK_SIZE);
+	t->kstack = t->kstack_base =(uint8_t *) kcalloc_page(STACK_SIZE);
 	if (!t->kstack) {
 		printk("malloc failed\n");
 		return NULL;
@@ -167,6 +167,28 @@ int create_init_task()
 void idle_loop()
 {
 	while (1) {
+		struct task *new_task;
+		list_head_t *node;
+
+		cli();
+		list_for_each(node, task_list) {
+			/* Validate task struct */
+			new_task = list_entry(node, struct task, next);
+			if (!new_task || new_task->state != TASK_EXITED)
+				continue;
+
+			/* Free up all dynamic memory allocated */
+			list_del(&new_task->next);
+			deallocvm(new_task->pd);
+			kfree_page(new_task->kstack_base);
+			kfree(new_task);
+			/* To traverse futher list, we need to move to
+			 * next node before freeing up, hence `list_for_each`
+			 * is not suitable */
+			break;
+		}
+		sti();
+
 		/* Allowed following instruction in previlege mode only */
 		asm volatile("hlt");
 	}
@@ -317,6 +339,7 @@ void trace_tasks()
 	list_head_t *node;
 	struct task *t;
 	cli();
+	printk("#### Task list ####\n");
 	list_for_each(node, task_list) {
 		/* Validate task struct */
 		t = list_entry(node, struct task, next);

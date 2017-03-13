@@ -24,6 +24,7 @@ struct context {
 struct task {
 	int id;                  // Process ID
 	int state;		 // State of task, running, blocked etc.
+	uint8_t *kstack_base;	 // Kernel stack base
 	uint8_t *kstack;	 // Kernel stack
 	void *wait_resource;	 // Opaque reference to waiting resource
 	registers_t *irqf;       // Registers context saved in irq
