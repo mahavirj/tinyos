@@ -229,6 +229,9 @@ int sys_exec()
 	/* Save old page dir pointer */
 	pd_t *old_pd = current_task->pd;
 	current_task->pd = new_pd;
+
+	/* Save current pd to new pd */
+	current_pd = new_pd;
 	/* Switch to new page dir */
 	switch_pgdir(V2P(current_task->pd));
 	/* Now we can safely free older page dir */
