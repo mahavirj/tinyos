@@ -164,6 +164,33 @@ int create_init_task()
 	return 0;
 }
 
+void idle_loop()
+{
+	while (1) {
+		/* Allowed following instruction in previlege mode only */
+		asm volatile("hlt");
+	}
+}
+
+int create_idle_task()
+{
+	struct task *idle = alloctask();
+	if (!idle) {
+		printk("failed to create idle task\n");
+		return -1;
+	}
+
+	/* Task will start in CPL = 0, i.e. kernel mode */
+	idle->irqf->cs = (SEG_KCODE << 3);
+	idle->irqf->ds = (SEG_KDATA << 3);
+	idle->irqf->eflags = 0x200;
+	idle->irqf->eip = (uint32_t) idle_loop;
+
+	idle->state = TASK_READY;
+
+	return 0;
+}
+
 int sys_fork()
 {
 	int ret;
@@ -209,7 +236,7 @@ int sys_exec()
 	void *fstart = cpio_get_file(_binary_ramfs_cpio_start,
 					fname, &size);
 	if (!fstart) {
-		printk("no %s in initramfs\n", fname);
+		printk("no `%s` in ramfs\n", fname);
 		return -1;
 	}
 
@@ -286,6 +313,7 @@ void init_scheduler()
 		printk("Scheduler invoked before creating task\n");
 		return;
 	}
+	create_idle_task();
 	current_task = init_task;
 	set_kernel_stack((uint32_t) current_task->kstack);
 	switch_pgdir(V2P(current_task->pd));
