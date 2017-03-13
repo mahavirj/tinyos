@@ -10,6 +10,7 @@ void *kmalloc(size_t size);
 void *kcalloc(size_t size);
 void kfree(void *addr);
 void kfree_page(void *addr);
+void mem_stats();
 int mem_init(void *addr, size_t size);
 
 #endif /* __MEM_H__ */

@@ -146,6 +146,16 @@ static inline int list_empty(const list_head_t *head)
 	for (pos = (head)->next; pos != (head); pos = pos->next)
 
 /**
+ * list_for_each_safe	-	iterate over a list in safe manner
+ * @pos:	the &list_head_t to use as a loop cursor.
+ * @_pos:	the &list_head_t to use as a next loop cursor
+ * @head:	the head for your list.
+ */
+#define list_for_each_safe(pos, _pos, head) \
+	for (pos = (head)->next, _pos = (head)->next->next; pos != (head); \
+					 pos = _pos, _pos = _pos->next)
+
+/**
  * list_for_each_prev	-	iterate over a list backwards
  * @pos:	the &list_head_t to use as a loop cursor.
  * @head:	the head for your list.

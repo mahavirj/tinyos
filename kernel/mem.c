@@ -7,6 +7,7 @@
 
 #include <mem.h>
 #include <string.h>
+#include <vga.h>
 
 /* #define MEM_DEBUG */
 
@@ -181,6 +182,13 @@ void *kcalloc(size_t size)
 	if (p)
 		memset(p, 0, size);
 	return p;
+}
+
+void mem_stats()
+{
+	printk("#### Heap Stats ####\n");
+	printk("Total size: %x\n", total_size);
+	printk("Free size: %x\n", free_size);
 }
 
 int mem_init(void *mem_start, size_t size)

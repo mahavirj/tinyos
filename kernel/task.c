@@ -168,10 +168,12 @@ void idle_loop()
 {
 	while (1) {
 		struct task *new_task;
-		list_head_t *node;
+		list_head_t *node, *_node;
 
 		cli();
-		list_for_each(node, task_list) {
+		/* Safer version for list traversal, as iterator might get
+		 * modified */
+		list_for_each_safe(node, _node, task_list) {
 			/* Validate task struct */
 			new_task = list_entry(node, struct task, next);
 			if (!new_task || new_task->state != TASK_EXITED)
@@ -182,10 +184,6 @@ void idle_loop()
 			deallocvm(new_task->pd);
 			kfree_page(new_task->kstack_base);
 			kfree(new_task);
-			/* To traverse futher list, we need to move to
-			 * next node before freeing up, hence `list_for_each`
-			 * is not suitable */
-			break;
 		}
 		sti();
 
