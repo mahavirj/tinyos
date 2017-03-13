@@ -17,7 +17,19 @@ execve:
 	ret
 
 [GLOBAL read]
-sleep:
+read:
 	mov eax, 3
+	int 64
+	ret
+
+[GLOBAL exit]
+exit:
+	mov eax, 4
+	int 64
+	ret
+
+[GLOBAL waitpid]
+waitpid:
+	mov eax, 5
 	int 64
 	ret

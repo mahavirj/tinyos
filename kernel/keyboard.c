@@ -2,6 +2,10 @@
 #include <helper.h>
 #include <keyboard.h>
 #include <vga.h>
+#include <sync.h>
+#include <mem.h>
+#include <syscall.h>
+#include <string.h>
 
 /* KBDUS means US Keyboard Layout. This is a scancode table
  *  used to layout a standard US keyboard. I have left some
@@ -48,6 +52,26 @@ unsigned char kbdus[128] =
 	0,	/* All other keys are undefined */
 };
 
+#define MAX_SIZE 32
+
+#define WRAP(x) \
+	((x + 1) & (MAX_SIZE - 1))
+
+#define CIRC_BUF_EMPTY(x) \
+	(x->rindex == x->windex)
+
+#define CIRC_BUF_FULL(x) \
+	(x->rindex == WRAP(x->windex + 1))
+
+struct circ_buf {
+	struct spinlock lock;
+	char buf[MAX_SIZE];
+	int rindex;
+	int windex;
+};
+
+static struct circ_buf *circ_buf;
+
 /* Handles the keyboard interrupt */
 void keyboard_handler(registers_t *r)
 {
@@ -59,31 +83,47 @@ void keyboard_handler(registers_t *r)
 
 	/* If the top bit of the byte we read from the keyboard is
 	 *  set, that means that a key has just been released */
-	if (scancode & 0x80)
-	{
-		/* You can use this one to see if the user released the
-		 *  shift, alt, or control keys... */
-	}
-	else
-	{
+	if (scancode & 0x80) {
+		/* Special keyboard chars */
+	} else {
 		/* Here, a key was just pressed. Please note that if you
 		 *  hold a key down, you will get repeated key press
 		 *  interrupts. */
-
-		/* Just to show you how this works, we simply translate
-		 *  the keyboard scancode into an ASCII value, and then
-		 *  display it to the screen. You can get creative and
-		 *  use some flags to see if a shift is pressed and use a
-		 *  different layout, or you can add another 128 entries
-		 *  to the above layout to correspond to 'shift' being
-		 *  held. If shift is held using the larger lookup table,
-		 *  you would add 128 to the scancode when you look for it */
 		sys_write_char(kbdus[scancode]);
+		if (!CIRC_BUF_FULL(circ_buf)) {
+			circ_buf->buf[circ_buf->windex] = kbdus[scancode];
+			circ_buf->windex = WRAP(circ_buf->windex);
+			wakeup(&circ_buf->lock);
+		}
 	}
 }
 
 void init_keyboard()
 {
+	circ_buf = kcalloc(sizeof(struct circ_buf));
+	if (!circ_buf) {
+		printk("malloc failed\n");
+		return;
+	}
 	/* Installs 'keyboard_handler' to IRQ1 */
 	irq_install_handler(IRQ1, keyboard_handler);
+}
+
+int sys_read()
+{
+	char *buf;
+	int len;
+	int read_bytes = 0;
+
+	argstr(1, &buf);
+	argint(2, &len);
+
+	if (CIRC_BUF_EMPTY(circ_buf))
+		sleep(circ_buf, &circ_buf->lock);
+
+	while (!CIRC_BUF_EMPTY(circ_buf) && (read_bytes < len)) {
+		buf[read_bytes++]  = circ_buf->buf[circ_buf->rindex];
+		circ_buf->rindex = WRAP(circ_buf->rindex);
+	}
+	return read_bytes;
 }

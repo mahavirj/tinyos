@@ -2,6 +2,7 @@
 #include <vga.h>
 #include <helper.h>
 #include <task.h>
+#include <keyboard.h>
 
 static registers_t *irqf;
 
@@ -9,7 +10,9 @@ static void *sys_handlers[] = {
 	sys_write,
 	sys_fork,
 	sys_exec,
-	//sys_read,
+	sys_read,
+	sys_exit,
+	sys_waitpid,
 };
 
 int argint(int n, int *p)

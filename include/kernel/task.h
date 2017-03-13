@@ -8,6 +8,7 @@ enum task_state {
 	TASK_RUNNING = 2,
 	TASK_READY = 3,
 	TASK_SLEEPING = 4,
+	TASK_EXITED = 5,
 };
 
 /* Callee saved register context */
@@ -47,6 +48,8 @@ void tiny_schedule(void);
 int create_init_task(void);
 int sys_fork(void);
 int sys_exec(void);
+int sys_exit(void);
+int sys_waitpid(void);
 void swtch(struct context **old, struct context *new);
 void yield();
 void sched();

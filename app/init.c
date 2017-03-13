@@ -1,8 +1,6 @@
 #include <tinyos.h>
 #include <unistd.h>
-
-char a[] = "Hello World Parent!\n";
-char b[] = "Hello World Child!\n";
+#include <sys/wait.h>
 
 int main(void)
 {
@@ -12,12 +10,8 @@ int main(void)
 	if (ret == 0) {
 		execve("shell", &argv, NULL);
 	} else {
-		for (;;) {
-			printf("%s", a);
-			volatile int a = 1 << 23;
-			while (a--)
-				;
-		}
+		waitpid(-1, NULL, 0);
+		printf("Bye! Init exiting\n");
 	}
 	return 0;
 }

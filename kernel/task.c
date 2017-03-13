@@ -267,8 +267,27 @@ int sys_exec()
 	return 0;
 }
 
+int sys_exit()
+{
+	/* FIXME: Resources should be freed from IDLE task context */
+	current_task->state = TASK_EXITED;
+	task_wakeup(current_task->parent);
+	sched();
+	return 0;
+}
+
+int sys_waitpid()
+{
+	task_sleep(current_task);
+	sched();
+	return 0;
+}
+
 void task_sleep(void *resource)
 {
+	if (!resource)
+		return;
+
 	cli();
 	current_task->wait_resource = resource;
 	current_task->state = TASK_SLEEPING;
@@ -277,6 +296,9 @@ void task_sleep(void *resource)
 
 void task_wakeup(void *resource)
 {
+	if (!resource)
+		return;
+
 	cli();
 	list_head_t *node;
 	list_for_each(node, task_list) {
