@@ -61,6 +61,7 @@ asm_objs := $(asm_srcs:%.s=$(objdir)/%.o)
 app_lib_srcs := stdlib/crt.c \
 		stdlib/stdlib.c \
 		stdlib/printf.c \
+		stdlib/malloc.c \
 
 app_asm_srcs := boot/syscall.s \
 
@@ -89,24 +90,28 @@ endef
 
 all: pre-build $(kernel) $(os_image)
 
-ramfs.obj: $(app_lib) $(app_obj_dir)/init $(app_obj_dir)/shell $(app_obj_dir)/forktest
+ramfs.obj: $(app_lib) $(app_obj_dir)/init $(app_obj_dir)/shell $(app_obj_dir)/forktest $(app_obj_dir)/memtest
 	$(V)cd $(app_obj_dir) && find . | cpio -o -H newc > ../ramfs.cpio
 	$(V)cd $(objdir) && $(OBJCOPY) -I binary -O elf32-i386 -B i386 ramfs.cpio $@
 
 $(app_lib): $(app_lib_objs) $(app_asm_objs)
 	$(V)$(AR) cru $@ $^
 
-$(app_obj_dir)/forktest: $(app_src_dir)/forktest.c
+$(app_obj_dir)/forktest: $(app_src_dir)/forktest.c $(app_lib)
 	@echo "  APP   $<"
-	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(app_lib) -o $@
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $^ -o $@
 
-$(app_obj_dir)/init: $(app_src_dir)/init.c
+$(app_obj_dir)/memtest: $(app_src_dir)/memtest.c $(app_lib)
 	@echo "  APP   $<"
-	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(app_lib) -o $@
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $^ -o $@
 
-$(app_obj_dir)/shell: $(app_src_dir)/shell.c
+$(app_obj_dir)/init: $(app_src_dir)/init.c $(app_lib)
 	@echo "  APP   $<"
-	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $< $(app_lib) -o $@
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $^ -o $@
+
+$(app_obj_dir)/shell: $(app_src_dir)/shell.c $(app_lib)
+	@echo "  APP   $<"
+	$(V)$(CC) $(APP_CFLAGS) $(APP_LDFLAGS) $^ -o $@
 
 pre-build:
 	@mkdir -p $(objdir)

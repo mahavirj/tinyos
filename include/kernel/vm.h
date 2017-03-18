@@ -9,9 +9,11 @@
 #define PTXSHIFT	12
 #define PDXSHIFT	22
 
+#define HEAPBASE 	0x80000000
 #define KERNBASE 	0xC0000000
 #define KERNLINK	0xC0100000
 #define PHYS_RAM	0x02000000
+#define SBRK_LIMIT	(0x00400000 - (2 * STACK_SIZE))
 #define PTE_P 		0x001
 #define PTE_W 		0x002
 #define PTE_U 		0x004

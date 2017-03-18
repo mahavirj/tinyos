@@ -13,6 +13,7 @@ static void *sys_handlers[] = {
 	sys_read,
 	sys_exit,
 	sys_waitpid,
+	sys_sbrk,
 };
 
 int argint(int n, int *p)

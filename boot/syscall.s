@@ -33,3 +33,9 @@ waitpid:
 	mov eax, 5
 	int 64
 	ret
+
+[GLOBAL sbrk]
+sbrk:
+	mov eax, 6
+	int 64
+	ret

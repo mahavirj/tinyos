@@ -57,6 +57,8 @@ static int load_elf(struct task *t, pd_t *pd, void *data)
 			printk("loaduvm failure\n");
 			return -1;
 		}
+		/* Set system break */
+		t->sbrk = elf_sh[i].p_vaddr + elf_sh[i].p_memsz;
 	}
 
 	/* Stack will be set up at last 4K in 4M region */
@@ -233,6 +235,8 @@ int sys_fork()
 
 	/* Clone exception frame from parent task */
 	*t->irqf = *current_task->irqf;
+	/* Clone parent sbrk limit */
+	t->sbrk = current_task->sbrk;
 	/* Child return value should be zero */
 	t->irqf->eax = 0;
 
@@ -301,6 +305,24 @@ int sys_waitpid()
 	task_sleep(current_task);
 	sched();
 	return 0;
+}
+
+int sys_sbrk()
+{
+	int size;
+	char *curr_limit;
+
+	argint(0, &size);
+	curr_limit = (char *) current_task->sbrk;
+
+	if (size != 0) {
+		if (((uintptr_t) curr_limit + size) > SBRK_LIMIT)
+			return -1;
+		allocuvm(current_pd, curr_limit, size);
+		current_task->sbrk = (uintptr_t) curr_limit + size;
+	}
+
+	return (int) curr_limit;
 }
 
 void task_sleep(void *resource)

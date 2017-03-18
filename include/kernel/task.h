@@ -24,6 +24,7 @@ struct context {
 struct task {
 	int id;                  // Process ID
 	int state;		 // State of task, running, blocked etc.
+	int sbrk;		 // System break for process
 	uint8_t *kstack_base;	 // Kernel stack base
 	uint8_t *kstack;	 // Kernel stack
 	void *wait_resource;	 // Opaque reference to waiting resource
@@ -51,6 +52,7 @@ int sys_fork(void);
 int sys_exec(void);
 int sys_exit(void);
 int sys_waitpid(void);
+int sys_sbrk(void);
 void swtch(struct context **old, struct context *new);
 void yield();
 void sched();
