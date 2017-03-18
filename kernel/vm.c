@@ -167,14 +167,16 @@ int allocuvm(pd_t *new_pd, void *virt, int size)
 	size = ALIGN(size, PGSIZE);
 
 	for (i = 0; i < size; i += PGSIZE, virt = PTRINC(virt, PGSIZE)) {
-		void *page = kcalloc_page(PGSIZE);
-		if (!page) {
-			printk("malloc failed\n");
-			return -1;
-		}
 		pte_t **pte = pte_walk(new_pd, virt, true);
 		if (!pte) {
 			printk("page table walk failed\n");
+			return -1;
+		} else if ((uintptr_t) *pte & PTE_P) {
+			continue;
+		}
+		void *page = kcalloc_page(PGSIZE);
+		if (!page) {
+			printk("malloc failed\n");
 			return -1;
 		}
 
