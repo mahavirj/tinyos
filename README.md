@@ -8,7 +8,7 @@ X86 based Operating system built from scratch for learning purpose:
 ## Features
 
 * Higher half kernel:
- Kernel sets itself up to run from higher half, 3GB region
+Kernel sets itself up to run from higher half, 3GB region
 * Multitasking
  * Basic scheduler with multitasking support, round robin, with same priority
  * Timer interrupt forces context switch
@@ -60,21 +60,31 @@ serving as higher half mapping.
 execution from higher half.
 
 ## Memory Management
-Simple `first fit` strategy memory allocator, allocates memory from kernel
+Simple `first-fit` strategy memory allocator, allocates memory from kernel
 space, during `free` it also manages compaction of adjacent free blocks.
+
+For userspace malloc/free are provided which internally used `sbrk` system call
+to increase system break (if required). Kernel does required page table setups and
+returns increases system break limit.
 
 ## Paging and VM
 This is divided into kernel space memory mapping and user space memory
 mappings. Kernel space mappings remains constant and are part of every process
 address space, only linked not cloned, as changes from one process in kernel
 space should be visible ot other processes as well.
+
 User space mappings depends on `exec` call, and every process has its own
 kernel as well as user stack.
+
 During context switch, CR3 register gets loaded with current process page
 directory base address and that also internally invalidates TLB (Translation
 Lookaside Buffer).
 
 ## Init Process
+User space applications are stored in `initramfs`, a cpio format archieve in
+standard ELF format. During `exec` kernel finds and parses ELF image, sets up its
+page tables accordingly. `Init` process only starts `shell` then hangs in there
+forever.
 
 ## Scheduling
 Scheduler runs on behalf of currently executing process, mainly in two cases,
@@ -90,10 +100,10 @@ We program this stack frame accordingly while creating new task,
 
 ```c
         /* Task will start in CPL = 3, i.e. user mode */
-        init_task->irqf->cs = (SEG_UCODE << 3) | DPL_USER;
-        init_task->irqf->ds = (SEG_UDATA << 3) | DPL_USER;
-        init_task->irqf->eflags = 0x200;
-        init_task->irqf->ss = (SEG_UDATA << 3) | DPL_USER;
+        task->irqf->cs = (SEG_UCODE << 3) | DPL_USER;
+        task->irqf->ds = (SEG_UDATA << 3) | DPL_USER;
+        task->irqf->eflags = 0x200;
+        task->irqf->ss = (SEG_UDATA << 3) | DPL_USER;
 ```
 
 X86 hardware has built-in support for task switching, basically switching from
@@ -110,11 +120,12 @@ kernel mode SS (stack segment) and ESP (stack pointer) for current task.
 # Contributing
 Feel free to fork and send merge request
 
-# References
+# Credits/References
 
 * [Intel Reference Manual v.3A](http://download.intel.com/design/processor/manuals/253668.pdf)
 * [Xv6, unix clone OS](https://pdos.csail.mit.edu/6.828/2016/xv6.html)
  * [Code on github](https://github.com/mit-pdos/xv6-public)
+* [OSDev](http://wiki.osdev.org/Main_Page)
 * [Bran's kernel development tutorial] (http://www.osdever.net/bkerndev/Docs/gettingstarted.htm)
 * [JamesM's kernel development tutorial] (https://web.archive.org/web/20160311205056/http://www.jamesmolloy.co.uk/index.html)
  * Some known bugs as documented [here](http://wiki.osdev.org/James_Molloy's_Known_Bugs)
