@@ -131,10 +131,10 @@ run: all
 	bochs -qf tools/bochsrc.txt -rc tools/bochsrc.debug
 
 qemu: all
-	qemu-system-i386 -cdrom bin/os.iso -m 32
+	qemu-system-i386 -cdrom bin/os.iso -m 32 -monitor stdio
 
 qemu_gdb: all
-	qemu-system-i386 -cdrom bin/os.iso -m 32 -s -S
+	qemu-system-i386 -cdrom bin/os.iso -m 32 -s -S -monitor stdio
 
 $(objdir)/%.o: %.c
 	@echo "  CC    $<"

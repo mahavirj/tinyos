@@ -293,7 +293,7 @@ int sys_exec()
 
 int sys_exit()
 {
-	/* FIXME: Resources should be freed from IDLE task context */
+	/* Memory will be freed from IDLE task context */
 	current_task->state = TASK_EXITED;
 	task_wakeup(current_task->parent);
 	sched();
