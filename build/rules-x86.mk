@@ -88,6 +88,7 @@ all: pre-build $(kernel) $(os_image)
 ramfs.obj: $(app_lib) $(app_obj_dir)/init $(app_obj_dir)/shell $(app_obj_dir)/forktest $(app_obj_dir)/memtest
 	$(V)cd $(app_obj_dir) && find . | cpio -o -H newc > ../ramfs.cpio
 	$(V)cd $(objdir) && $(OBJCOPY) -I binary -O elf32-i386 -B i386 ramfs.cpio $@
+	$(V)rm -f $(objdir)/ramfs.cpio $(app_lib)
 
 $(app_lib): $(app_lib_objs) $(app_asm_objs)
 	$(V)$(AR) cru $@ $^
@@ -116,6 +117,7 @@ $(kernel): $(LDFILE) $(asm_objs) $(c_objs) ramfs.obj
 	@echo "  LD    $@"
 	$(V)$(CC) $(CFLAGS) $(LDFLAGS) $(LDSCRIPT) $(asm_objs) $(c_objs) $(objdir)/ramfs.obj -o $@
 	$(V)$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(objdir)/kernel.sym
+	$(V)rm -f $(objdir)/ramfs.obj
 
 $(os_image): $(kernel)
 	$(V)cp $< iso/boot/
