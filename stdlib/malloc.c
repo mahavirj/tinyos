@@ -150,3 +150,11 @@ void *malloc(size_t size)
 	dbg("Rquired size unable to allocate %d\n", size - sizeof(node_t));
 	return NULL;
 }
+
+void *calloc(size_t nmemb, size_t size)
+{
+	void *p = malloc(nmemb * size);
+	if (p)
+		memset(p, 0, nmemb * size);
+	return p;
+}
