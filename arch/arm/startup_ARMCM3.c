@@ -181,6 +181,7 @@ const pFunc __Vectors[] __attribute__ ((section(".vectors"))) = {
   SPI_IRQHandler                            /* 31: SPI Touchscreen - CPU FPGA */
 };
 
+extern int kmain();
 
 /*----------------------------------------------------------------------------
   Reset Handler called on controller reset

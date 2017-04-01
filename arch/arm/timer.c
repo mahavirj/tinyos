@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <task.h>
 #include <ARMCM3.h>
 
 static volatile int timer_ticks;

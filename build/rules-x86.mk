@@ -31,13 +31,13 @@ c_srcs := \
 	  arch/x86/isr.c \
 	  arch/x86/keyboard.c \
 	  arch/x86/mem.c \
-	  arch/x86/sync.c \
 	  arch/x86/syscall.c \
 	  arch/x86/task.c \
 	  arch/x86/timer.c \
 	  arch/x86/vm.c \
 	  arch/x86/drivers/vga.c \
 	  kernel/main.c \
+	  kernel/sync.c \
 	  stdlib/stdlib.c \
 	  stdlib/printk.c \
 	  stdlib/wait_queue.c \

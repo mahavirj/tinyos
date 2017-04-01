@@ -35,6 +35,14 @@ struct task {
 	list_head_t next;        // The next task in a linked list
 };
 
-extern struct task init;
+void task_sleep(void *resource);
+void task_wakeup(void *resource);
+void trace_tasks();
+void init_scheduler();
+void tiny_schedule(void);
+int create_init_task(void);
+void yield();
+void sched();
+struct task *create_task(void *func);
 
 #endif /* __TASK_H__ */

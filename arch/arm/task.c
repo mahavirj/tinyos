@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <console.h>
 #include <ARMCM3.h>
 
 #define CTRL_REG	(*((volatile uint32_t *) 0xe000ed04))
@@ -17,26 +18,52 @@ static int pid;
 void SVC_Handler(void)
 {
 	__asm volatile("mov r0, %0 \n"
+			/* Load user saved context */
 			"ldmia r0!, {r4-r11} \n"
+			/* POP LR in dummy register */
 			"ldmia r0!, {r1} \n"
+			/* Set PSP from where exception frame will be popped */
 			"msr psp, r0 \n"
+			/* Make sure will return to thread mode with PSP */
 			"orr lr, #0xd \n"
 			"bx lr \n"
 			: : "r" (init_task->context)
 		      );
 }
 
+const int c = offsetof(struct task, context);
+
 void PendSV_Handler()
 {
-	__asm volatile("mov r1, %0 \n"
+	__asm volatile("mov r2, %0 \n"
+			/* Load current_task address */
+			"ldr r1, [r2] \n"
+			/* Get context address from current_task */
+			"add r1, %1 \n"
+			/* Get current PSP */
 			"mrs r0, psp \n"
+			/* Store current task context */
 			"stmdb r0!, {r4-r11, lr} \n"
+			/* Store current stack to current context */
 			"str r0, [r1] \n"
+			/* Save R2 holding base address of current_task */
+			"push {r2} \n"
+			/* Call scheduling code, that will update current_task */
 			"bl tiny_schedule \n"
+			/* Load base address of current_task */
+			"pop {r2} \n"
+			/* Load current_task address */
+			"ldr r1, [r2] \n"
+			/* Get context address from current_task */
+			"add r1, %1 \n"
+			/* Get actual context stack location for current_task */
+			"ldr r0, [r1] \n"
+			/* Pop context from thread stack */
 			"ldmia r0!, {r4-r11, lr} \n"
+			/* Update new PSP */
 			"msr psp, r0 \n"
 			"bx lr \n"
-			: : "r" (&current_task->context)
+			: : "r" (&current_task), "i" (c)
 		      );
 }
 
@@ -203,14 +230,14 @@ void init_scheduler()
 		printf("Scheduler invoked before creating task\n");
 		return;
 	}
-	//create_idle_task();
+	create_idle_task();
 	current_task = init_task;
 	current_task->state = TASK_RUNNING;
 	__asm volatile("svc 0");
 	//load_context(current_task->context);
 }
 
-void *tiny_schedule()
+void tiny_schedule()
 {
 	struct task *new_task, *prev_task;
 	list_head_t *node;
@@ -250,8 +277,6 @@ void *tiny_schedule()
 	}
 	/* Globally enable interrupts */
 	__enable_irq();
-
-	return current_task->context;
 }
 
 void yield()
