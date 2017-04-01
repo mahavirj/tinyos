@@ -21,4 +21,4 @@ $(objdir)/%.o: %.s
 	@echo "  ASM   $<"
 	$(V)$(AS) $(ASFLAGS) $< -o $@
 
-.PHONY: all pre-build clean run
+.PHONY: pre-build all post-build clean run qemu qemu_gdb

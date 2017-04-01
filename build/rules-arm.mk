@@ -1,8 +1,8 @@
 
 # Compiler GCC
 CC := arm-none-eabi-gcc
-CFLAGS := -g -mcpu=cortex-m3 -mthumb -O2 -ffreestanding -Iarch/arm/ -I include/
-LDFILE := arch/arm/ldscript/linker.ld
+CFLAGS := -ggdb -mcpu=cortex-m3 -mthumb -O2 -ffreestanding -Iarch/arm/include/ -I include/
+LDFILE := arch/arm/ldscript/gcc_arm.ld
 LDFLAGS := -T $(LDFILE) -nostdlib
 
 # Build artifacts
@@ -14,8 +14,14 @@ kernel_src_dir := \
 		stdlib 	 		\
 
 c_srcs := \
-	arch/arm/startup.c \
+	arch/arm/startup_ARMCM3.c \
+	arch/arm/system_ARMCM3.c \
 	arch/arm/main.c \
+	arch/arm/console.c \
+	arch/arm/syscall.c \
+	arch/arm/arch.c \
+	arch/arm/timer.c \
+	arch/arm/task.c \
 	stdlib/stdlib.c \
 	stdlib/printf.c \
 	stdlib/malloc.c \
