@@ -55,7 +55,7 @@ static void t1()
        }
 }
 
-int app_init()
+int main()
 {
 	t1();
 }

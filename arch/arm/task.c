@@ -31,8 +31,6 @@ void SVC_Handler(void)
 		      );
 }
 
-const int c = offsetof(struct task, context);
-
 void PendSV_Handler()
 {
 	__asm volatile("mov r2, %0 \n"
@@ -63,7 +61,7 @@ void PendSV_Handler()
 			/* Update new PSP */
 			"msr psp, r0 \n"
 			"bx lr \n"
-			: : "r" (&current_task), "i" (c)
+			: : "r" (&current_task), "i" (&((struct task *)0)->context)
 		      );
 }
 
@@ -117,7 +115,7 @@ struct task *create_task(void *func)
 	return t;
 }
 
-extern void app_init();
+extern void main();
 int create_init_task()
 {
 	int ret;
@@ -130,7 +128,7 @@ int create_init_task()
 	}
 	INIT_LIST_HEAD(task_list);
 
-	init_task = create_task(app_init);
+	init_task = create_task(main);
 	if (!init_task) {
 		printf("failed to create init task\n");
 		return -1;
