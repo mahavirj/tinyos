@@ -1,13 +1,7 @@
-#include <vga.h>
-#include <gdt.h>
-#include <idt.h>
-#include <helper.h>
-#include <timer.h>
-#include <keyboard.h>
-#include <mem.h>
-#include <vm.h>
 #include <task.h>
-#include <sync.h>
+//#include <sync.h>
+#include <arch.h>
+#include <console.h>
 
 #if 0
 static int count = 1;
@@ -49,31 +43,14 @@ static void print_banner()
 	printk("#########################\n\n");
 }
 
-extern unsigned end;
 int kmain(void)
 {
-	init_vga();
+	console_init();
 	print_banner();
-	mem_init(&end, PHYS_RAM - (int) V2P(&end));
-	printk("Initialized memory allocator\n");
-	init_paging();
-	printk("Initialized kernel paging\n");
-	init_gdt();
-	init_idt();
-	printk("Initialized descriptors\n");
-	init_keyboard();
-	init_timer(100);
+	arch_init();
 	create_init_task();
 	init_scheduler();
 	printk("HALT! Unreachable code\n");
 	for (;;)
 		;
 }
-
-__attribute__((aligned(PGSIZE))) pd_t entrypgdir = {
-	/* Identiy mapping for first 4M memory */
-	.pdes[0] = (pde_t *) ((0) | PTE_P | PTE_W | PTE_PS),
-	/* Higher address mapping for 4M memory */
-	.pdes[KERNBASE >> PDXSHIFT] =
-		 (pde_t *) ((0) | PTE_P | PTE_W | PTE_PS),
-};

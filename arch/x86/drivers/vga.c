@@ -122,3 +122,8 @@ void init_vga()
 	fb = (uint16_t *) (KERNBASE + 0xB8000);
 	cls();
 }
+
+void console_init()
+{
+	init_vga();
+}

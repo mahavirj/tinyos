@@ -274,3 +274,11 @@ void init_paging()
 	irq_install_handler(14, page_fault);
 	switch_pgdir(V2P(init_pd));
 }
+
+__attribute__((aligned(PGSIZE))) pd_t entrypgdir = {
+	/* Identiy mapping for first 4M memory */
+	.pdes[0] = (pde_t *) ((0) | PTE_P | PTE_W | PTE_PS),
+	/* Higher address mapping for 4M memory */
+	.pdes[KERNBASE >> PDXSHIFT] =
+		 (pde_t *) ((0) | PTE_P | PTE_W | PTE_PS),
+};
