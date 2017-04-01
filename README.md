@@ -1,14 +1,13 @@
 # TinyOS
 
-X86 based Operating system built from scratch for learning purpose:
+X86 based Operating system built from scratch for learning purpose
 
 - KISS (Keep It Simple Stupid) Philosophy
 - Bootloader is assumed to be GRUB, kernel has GRUB specific multiboot header
 
 ## Features
 
-- Higher half kernel
-Kernel sets itself up to run from higher half, 3GB region
+- Higher half Kernel, Kernel sets itself up to run from higher half, 3GB region
 - Multitasking
  - Basic scheduler with multitasking support, round robin, with same priority
  - Timer interrupt forces context switch
