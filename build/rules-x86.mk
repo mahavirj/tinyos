@@ -38,6 +38,7 @@ c_srcs := \
 	  arch/x86/drivers/vga.c \
 	  kernel/main.c \
 	  kernel/sync.c \
+	  kernel/sched.c \
 	  stdlib/stdlib.c \
 	  stdlib/printk.c \
 	  stdlib/wait_queue.c \
@@ -76,12 +77,7 @@ APP_CFLAGS := -g -O2 -m32 -static -fno-pic -Wall -Wextra -ffreestanding -I app/
 APP_LDFLAGS := -nostdlib -Ttext 0x100000 -Wl,--build-id=none
 ASFLAGS = -f elf
 
-define make-repo
-   for dir in $(kernel_src_dir) $(boot_src_dir) $(app_src_dir); \
-   do \
-        mkdir -p $(objdir)/$$dir; \
-   done
-endef
+src_dirs := $(kernel_src_dir) $(boot_src_dir) $(app_src_dir)
 
 all: pre-build $(kernel) $(os_image)
 

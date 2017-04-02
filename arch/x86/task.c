@@ -9,6 +9,7 @@
 #include <cpio_parser.h>
 #include <elf.h>
 #include <syscall.h>
+#include <sched.h>
 
 /* Task list */
 static list_head_t *task_list;
@@ -389,51 +390,29 @@ void init_scheduler()
 
 void tiny_schedule()
 {
-	struct task *new_task, *prev_task;
-	list_head_t *node;
-	bool found = false;
+	struct task *_t = current_task;
 
 	/* Globally disable interrupts, can be called from `yield` */
 	cli();
 
-	list_for_each(node, task_list) {
-		/* Validate task struct */
-		new_task = list_entry(node, struct task, next);
-		if (!new_task || new_task == current_task
-					 || new_task->state != TASK_READY)
-			continue;
+	/* Find and set next task to schedule */
+	next_to_schedule(task_list, &current_task);
 
-		/* Make this last for round robin */
-		list_del(&new_task->next);
-		list_add_tail(&new_task->next, task_list);
-		found = true;
-		break;
-	}
-
-	if (found) {
+	/* See if context switch is required */
+	if (_t != current_task) {
 		/* Set kernel mode stack in task state segment */
-		set_kernel_stack((uint32_t) new_task->kstack);
+		set_kernel_stack((uint32_t) current_task->kstack);
 
 		/* Switch page directory to new task */
-		switch_pgdir(V2P(new_task->pd));
+		switch_pgdir(V2P(current_task->pd));
 
 		/* Set current page directory*/
-		current_pd = new_task->pd;
+		current_pd = current_task->pd;
 
-		prev_task = current_task;
-		/* Set current task */
-		current_task = new_task;
-
-		/* Set task state to running */
-		new_task->state = TASK_RUNNING;
 		/* Switch context */
-		swtch(&prev_task->context, new_task->context);
-	} else {
-		/* Scheduler did not find anything to switch to, hence
-		 * reset current task status.
-		 */
-		current_task->state = TASK_RUNNING;
+		swtch(&_t->context, current_task->context);
 	}
+
 	/* Globally enable interrupts */
 	sti();
 }

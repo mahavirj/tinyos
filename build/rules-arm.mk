@@ -10,10 +10,10 @@ LDFLAGS := -T $(LDFILE) -nostdlib -Wl,--defsym,printk=printf
 objdir := bin
 kernel := $(objdir)/kernel.elf
 
-kernel_src_dir := \
-		arch/arm/	 	\
-		kernel/		 	\
-		stdlib/  		\
+src_dirs := \
+	arch/arm/	\
+	kernel/		\
+	stdlib/		\
 
 c_srcs := \
 	arch/arm/startup_ARMCM3.c \
@@ -26,19 +26,13 @@ c_srcs := \
 	arch/arm/timer.c \
 	arch/arm/task.c \
 	kernel/main.c \
+	kernel/sched.c \
 	kernel/sync.c \
 	stdlib/stdlib.c \
 	stdlib/printf.c \
 	stdlib/malloc.c \
 
 c_objs := $(c_srcs:%.c=$(objdir)/%.o)
-
-define make-repo
-   for dir in $(kernel_src_dir); \
-   do \
-        mkdir -p $(objdir)/$$dir; \
-   done
-endef
 
 all: pre-build $(kernel)
 

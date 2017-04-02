@@ -17,6 +17,7 @@ static int pid;
 
 void SVC_Handler(void)
 {
+	/* FIXME: msp can be reset to original value here */
 	__asm volatile("mov r0, %0 \n"
 			/* Load user saved context */
 			"ldmia r0!, {r4-r11} \n"
@@ -47,7 +48,13 @@ void PendSV_Handler()
 			/* Save R2 holding base address of current_task */
 			"push {r2} \n"
 			/* Call scheduling code, that will update current_task */
-			"bl tiny_schedule \n"
+			"cpsid i \n"
+			"isb \n"
+			"mov r0, %2 \n"
+			"mov r1, %0 \n"
+			"bl next_to_schedule \n"
+			"cpsie i\n"
+			"isb \n"
 			/* Load base address of current_task */
 			"pop {r2} \n"
 			/* Load current_task address */
@@ -61,7 +68,9 @@ void PendSV_Handler()
 			/* Update new PSP */
 			"msr psp, r0 \n"
 			"bx lr \n"
-			: : "r" (&current_task), "i" (&((struct task *)0)->context)
+			: : "r" (&current_task),
+				"i" (&((struct task *)0)->context),
+				"r" (task_list)
 		      );
 }
 
@@ -231,50 +240,9 @@ void init_scheduler()
 	create_idle_task();
 	current_task = init_task;
 	current_task->state = TASK_RUNNING;
-	__asm volatile("svc 0");
-	//load_context(current_task->context);
-}
-
-void tiny_schedule()
-{
-	struct task *new_task, *prev_task;
-	list_head_t *node;
-	bool found = false;
-
-	/* Globally disable interrupts, can be called from `yield` */
-	__disable_irq();
-
-	list_for_each(node, task_list) {
-		/* Validate task struct */
-		new_task = list_entry(node, struct task, next);
-		if (!new_task || new_task == current_task
-					 || new_task->state != TASK_READY)
-			continue;
-
-		/* Make this last for round robin */
-		list_del(&new_task->next);
-		list_add_tail(&new_task->next, task_list);
-		found = true;
-		break;
-	}
-
-	if (found) {
-		prev_task = current_task;
-		/* Set current task */
-		current_task = new_task;
-
-		/* Set task state to running */
-		new_task->state = TASK_RUNNING;
-		/* Switch context */
-		//swtch(&prev_task->context, new_task->context, new_task);
-	} else {
-		/* Scheduler did not find anything to switch to, hence
-		 * reset current task status.
-		 */
-		current_task->state = TASK_RUNNING;
-	}
-	/* Globally enable interrupts */
-	__enable_irq();
+	__asm volatile("cpsie i \n"
+			"svc 0 \n"
+		      );
 }
 
 void yield()

@@ -13,6 +13,13 @@ endif
 
 include build/rules-$(ARCH).mk
 
+define make-repo
+   for dir in $(src_dirs); \
+   do \
+        mkdir -p $(objdir)/$$dir; \
+   done
+endef
+
 $(objdir)/%.o: %.c
 	@echo "  CC    $<"
 	$(V)$(CC) -c $(CFLAGS) $< -o $@
