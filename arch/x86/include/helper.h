@@ -16,33 +16,33 @@
 /* Enable interrupts on local processor */
 static inline void sti()
 {
-	asm volatile("sti");
+	__asm volatile("sti");
 }
 
 /* Disable interrupts on local processor */
 static inline void cli()
 {
-	asm volatile("cli");
+	__asm volatile("cli");
 }
 
 /* assembly code to read the TSC */
 static inline uint64_t rdtsc()
 {
 	unsigned int hi, lo;
-	__asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));
+	__asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
 	return ((uint64_t) hi << 32) | lo;
 }
 
 static inline unsigned char inportb (unsigned short _port)
 {
-    unsigned char rv;
-    __asm__ __volatile__ ("inb %1, %0" : "=a" (rv) : "dN" (_port));
-    return rv;
+	unsigned char rv;
+	__asm volatile("inb %1, %0" : "=a" (rv) : "dN" (_port));
+	return rv;
 }
 
 static inline void outportb (unsigned short _port, unsigned char _data)
 {
-    __asm__ __volatile__ ("outb %1, %0" : : "dN" (_port), "a" (_data));
+	__asm volatile("outb %1, %0" : : "dN" (_port), "a" (_data));
 }
 
 #endif /* __HELPER_H__ */

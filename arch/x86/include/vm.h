@@ -63,7 +63,7 @@ struct kmap_t {
 
 static inline void switch_pgdir(void *pg_dir)
 {
-	asm volatile("mov %0, %%cr3":: "r"(pg_dir));
+	__asm volatile("mov %0, %%cr3":: "r"(pg_dir));
 }
 
 /**

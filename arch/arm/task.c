@@ -4,14 +4,13 @@
 #include <stdbool.h>
 #include <console.h>
 #include <ARMCM3.h>
+#include <sched.h>
 
 #define CTRL_REG	(*((volatile uint32_t *) 0xe000ed04))
 #define PENDSV_BIT	(1UL << 28UL)
 
-/* Task list */
-static list_head_t *task_list;
-/* Current task running, should be in per CPU data */
-static struct task *current_task, *init_task;
+static struct task *init_task;
+
 /* PID of task, will be useful in fork */
 static int pid;
 
@@ -50,8 +49,6 @@ void PendSV_Handler()
 			/* Call scheduling code, that will update current_task */
 			"cpsid i \n"
 			"isb \n"
-			"mov r0, %2 \n"
-			"mov r1, %0 \n"
 			"bl next_to_schedule \n"
 			"cpsie i\n"
 			"isb \n"
@@ -69,8 +66,7 @@ void PendSV_Handler()
 			"msr psp, r0 \n"
 			"bx lr \n"
 			: : "r" (&current_task),
-				"i" (&((struct task *)0)->context),
-				"r" (task_list)
+				"i" (&((struct task *)0)->context)
 		      );
 }
 
@@ -117,6 +113,11 @@ struct task *create_task(void *func)
 
 	/* Set PC and xPSR registers */
 	t->irqf->xpsr = 0x01000000;
+	/* As per spec. this value should be in ARM mode (last bit zero),
+	 * as it will popped out from stack during exception return, but
+         * this is not case with FreeRTOS or other OS'es. Qemu does not work
+         * without this.
+         */
 	t->irqf->pc = (uintptr_t) func & ~(0x1);
 	t->context->lr = 0xfffffffd;
 
@@ -146,31 +147,11 @@ int create_init_task()
 	return 0;
 }
 
-void idle_loop()
+void task_delete(struct task *new_task)
 {
-	while (1) {
-		struct task *new_task;
-		list_head_t *node, *_node;
-
-		__disable_irq();
-		/* Safer version for list traversal, as iterator might get
-		 * modified */
-		list_for_each_safe(node, _node, task_list) {
-			/* Validate task struct */
-			new_task = list_entry(node, struct task, next);
-			if (!new_task || new_task->state != TASK_EXITED)
-				continue;
-
-			/* Free up all dynamic memory allocated */
-			list_del(&new_task->next);
-			free(new_task->kstack_base);
-			free(new_task);
-		}
-		__enable_irq();
-
-		/* Allowed following instruction in previlege mode only */
-		__asm volatile("wfi");
-	}
+	list_del(&new_task->next);
+	free(new_task->kstack_base);
+	free(new_task);
 }
 
 int create_idle_task()
@@ -182,53 +163,6 @@ int create_idle_task()
 	}
 
 	return 0;
-}
-
-void task_sleep(void *resource)
-{
-	if (!resource)
-		return;
-
-	__disable_irq();
-	current_task->wait_resource = resource;
-	current_task->state = TASK_SLEEPING;
-	__enable_irq();
-}
-
-void task_wakeup(void *resource)
-{
-	if (!resource)
-		return;
-
-	__disable_irq();
-	list_head_t *node;
-	list_for_each(node, task_list) {
-		/* Get task struct */
-		struct task *t = list_entry(node, struct task, next);
-		if (!t || t->wait_resource != resource)
-			continue;
-		t->wait_resource = NULL;
-		t->state = TASK_READY;
-	}
-	__enable_irq();
-}
-
-void trace_tasks()
-{
-	list_head_t *node;
-	struct task *t;
-	__disable_irq();
-	printf("#### Task list ####\n");
-	list_for_each(node, task_list) {
-		/* Validate task struct */
-		t = list_entry(node, struct task, next);
-		if (!t) {
-			printf("Err! Task is null\n");
-			continue;
-		}
-		printf("Task pid: %d, state: %d\n", t->id, t->state);
-	}
-	__enable_irq();
 }
 
 void init_scheduler()

@@ -13,7 +13,7 @@ void page_fault(registers_t *regs)
 	// A page fault has occurred.
 	// The faulting address is stored in the CR2 register.
 	uint32_t faulting_address;
-	asm volatile("mov %%cr2, %0" : "=r" (faulting_address));
+	__asm volatile("mov %%cr2, %0" : "=r" (faulting_address));
 
 	// The error code gives us details of what happened.
 	int present   = !(regs->err_code & 0x1); // Page not present

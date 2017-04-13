@@ -11,10 +11,7 @@
 #include <syscall.h>
 #include <sched.h>
 
-/* Task list */
-static list_head_t *task_list;
-/* Current task running, should be in per CPU data */
-static struct task *current_task, *init_task;
+static struct task *init_task;
 /* PID of task, will be useful in fork */
 static int pid;
 /* Current task page directory */
@@ -167,32 +164,12 @@ int create_init_task()
 	return 0;
 }
 
-void idle_loop()
+void task_delete(struct task *new_task)
 {
-	while (1) {
-		struct task *new_task;
-		list_head_t *node, *_node;
-
-		cli();
-		/* Safer version for list traversal, as iterator might get
-		 * modified */
-		list_for_each_safe(node, _node, task_list) {
-			/* Validate task struct */
-			new_task = list_entry(node, struct task, next);
-			if (!new_task || new_task->state != TASK_EXITED)
-				continue;
-
-			/* Free up all dynamic memory allocated */
-			list_del(&new_task->next);
-			deallocvm(new_task->pd);
-			kfree_page(new_task->kstack_base);
-			kfree(new_task);
-		}
-		sti();
-
-		/* Allowed following instruction in previlege mode only */
-		asm volatile("hlt");
-	}
+	list_del(&new_task->next);
+	deallocvm(new_task->pd);
+	kfree_page(new_task->kstack_base);
+	kfree(new_task);
 }
 
 int create_idle_task()
@@ -326,53 +303,6 @@ int sys_sbrk()
 	return (int) curr_limit;
 }
 
-void task_sleep(void *resource)
-{
-	if (!resource)
-		return;
-
-	cli();
-	current_task->wait_resource = resource;
-	current_task->state = TASK_SLEEPING;
-	sti();
-}
-
-void task_wakeup(void *resource)
-{
-	if (!resource)
-		return;
-
-	cli();
-	list_head_t *node;
-	list_for_each(node, task_list) {
-		/* Get task struct */
-		struct task *t = list_entry(node, struct task, next);
-		if (!t || t->wait_resource != resource)
-			continue;
-		t->wait_resource = NULL;
-		t->state = TASK_READY;
-	}
-	sti();
-}
-
-void trace_tasks()
-{
-	list_head_t *node;
-	struct task *t;
-	cli();
-	printk("#### Task list ####\n");
-	list_for_each(node, task_list) {
-		/* Validate task struct */
-		t = list_entry(node, struct task, next);
-		if (!t) {
-			printk("Err! Task is null\n");
-			continue;
-		}
-		printk("Task pid: %d, state: %d\n", t->id, t->state);
-	}
-	sti();
-}
-
 void init_scheduler()
 {
 	if (!init_task) {
@@ -396,7 +326,7 @@ void tiny_schedule()
 	cli();
 
 	/* Find and set next task to schedule */
-	next_to_schedule(task_list, &current_task);
+	next_to_schedule();
 
 	/* See if context switch is required */
 	if (_t != current_task) {
