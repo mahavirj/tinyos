@@ -9,6 +9,8 @@ void console_init()
 
 void write(int fd, const char *buf, int len)
 {
+	(void) fd;
+
 	volatile int *uart0 = (volatile int *) UART_BASE;
 	while (len--)
 		*uart0 = *buf++;

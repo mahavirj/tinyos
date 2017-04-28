@@ -128,8 +128,6 @@ struct task *create_task(void *func)
 extern void main();
 int create_init_task()
 {
-	int ret;
-
 	/* Initialize task list for scheduling */
 	task_list = (list_head_t *) malloc(sizeof(list_head_t));
 	if (!task_list) {

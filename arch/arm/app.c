@@ -3,27 +3,6 @@
 #include <sync.h>
 #include <console.h>
 
-static void delay()
-{
-	volatile int a = 0x1000000;
-	while (a--);
-}
-
-#if 0
-void swtch(struct context **old, struct context *new, void *a)
-{
-	(void) a;
-
-	__asm volatile("mrs r2, psp \n"
-			"stmdb r2!, {r4 - r11, lr} \n"
-			"str r2, [r0] \n"
-			"ldmia r1!, {r4 - r11, lr} \n"
-			"msr psp, r1 \n"
-		//	"bx lr \n"
-	);
-}
-#endif
-
 static int count = 1;
 static struct spinlock lock;
 static void t1();
@@ -58,4 +37,5 @@ static void t1()
 int main()
 {
 	t1();
+	return 0;
 }

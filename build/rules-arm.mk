@@ -1,7 +1,7 @@
 
 # Compiler GCC
 CC := arm-none-eabi-gcc
-CFLAGS := -ggdb -mcpu=cortex-m3 -mthumb -O2 -ffreestanding -Iarch/arm/include/ -I include/
+CFLAGS := -ggdb -Wall -Wextra -mcpu=cortex-m3 -mthumb -O2 -ffreestanding -Iarch/arm/include/ -I include/
 CFLAGS += -DVERSION=\"$(VERSION)\"
 LDFILE := arch/arm/ldscript/gcc_arm.ld
 LDFLAGS := -T $(LDFILE) -nostdlib -Wl,--defsym,printk=printf
