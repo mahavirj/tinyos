@@ -22,7 +22,7 @@ void forktest(void)
 	} 
 
 	if (n == N) {
-		printf("fork claimed to work N times!\n", N);
+		printf("fork claimed to work %d times!\n", N);
 	}
 }
 
