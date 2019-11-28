@@ -64,7 +64,7 @@ app_asm_objs := $(app_asm_srcs:%.s=$(objdir)/%.o)
 
 app_lib := $(objdir)/lib_helper.a
 
-CFLAGS := -g -O2 -m32 -ffreestanding -Wall -Wextra -DVERSION=\"$(VERSION)\"
+CFLAGS := -g -O2 -m32 -no-pie -ffreestanding -Wall -Wextra -DVERSION=\"$(VERSION)\" -Wno-restrict
 CFLAGS += -Iinclude/ \
 	-Iarch/x86/include \
 	-Iarch/x86/include/drivers \
@@ -87,7 +87,7 @@ ramfs.obj: $(app_lib) $(app_obj_dir)/init $(app_obj_dir)/shell $(app_obj_dir)/fo
 	$(V)rm -f $(objdir)/ramfs.cpio $(app_lib)
 
 $(app_lib): $(app_lib_objs) $(app_asm_objs)
-	$(V)$(AR) cru $@ $^
+	$(V)$(AR) cr $@ $^
 
 $(app_obj_dir)/forktest: $(app_src_dir)/forktest.c $(app_lib)
 	@echo "  APP   $<"

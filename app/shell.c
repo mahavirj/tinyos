@@ -23,7 +23,7 @@ int main()
 			ret = fork();
 			if (ret == 0) {
 				if (!strcmp(buf, "help"))
-					printf("Available commands 'forktest'\n");
+					printf("Available commands 'forktest', 'memtest'\n");
 				else
 					execve(buf, (char **) &ret, NULL);
 				return -1;
